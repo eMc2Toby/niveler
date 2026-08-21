@@ -15,12 +15,16 @@
  * La service_role key se pasa por variable de entorno y NUNCA se guarda en
  * el repo ni en .env: esa clave se salta todas las políticas RLS. Escribir
  * en Storage requiere ese permiso, por eso este script vive fuera de la app.
+ *
+ * Alternativa sin service_role: crear una política temporal que permita el
+ * insert en el bucket, pasar la anon key en SUPABASE_KEY y borrar la
+ * política apenas termine la carga.
  */
 import { readdirSync, readFileSync } from 'node:fs'
 import { extname, join } from 'node:path'
 
 const URL_BASE = process.env.SUPABASE_URL?.replace(/\/$/, '')
-const CLAVE = process.env.SUPABASE_SERVICE_ROLE_KEY
+const CLAVE = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY
 const BUCKET = 'productos'
 const CARPETA = 'imagenes_productos'
 

@@ -86,11 +86,13 @@ update usuarios
  where email = 'tu@correo.com';
 ```
 
-3. Subir las 80 imágenes al bucket, con tu service_role key en el entorno
-   (PowerShell, desde la raíz del proyecto):
+Las 77 imágenes ya están en el bucket. Si hay que volver a subirlas (o cargar
+las de un producto nuevo), hay dos caminos: con la `service_role` key en
+`SUPABASE_SERVICE_ROLE_KEY`, o abriendo una política temporal de insert para
+`anon` y pasando la anon key en `SUPABASE_KEY`. En los dos casos:
 
-```powershell
-$env:SUPABASE_URL="https://oesfhlniqujblgtwidia.supabase.co"; $env:SUPABASE_SERVICE_ROLE_KEY="<tu service_role>"; node scripts/subir-imagenes.mjs
+```bash
+node scripts/subir-imagenes.mjs
 ```
 
 ## El sistema no maneja dinero
