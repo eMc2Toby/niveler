@@ -41,6 +41,30 @@ left join deliveries d  on d.id = u.delivery_id
 where u.tipo in ('SUCURSAL', 'DELIVERY');
 
 -- ---------------------------------------------------------------------
+-- ALERTAS: productos por debajo del mínimo
+-- ---------------------------------------------------------------------
+-- Va antes que v_dashboard_totales porque esa vista la consulta.
+create or replace view v_productos_bajo_stock as
+select
+  p.id            as producto_id,
+  p.sku,
+  p.nombre        as producto,
+  p.imagen_url,
+  c.nombre        as categoria,
+  p.stock_minimo,
+  coalesce(sum(i.cantidad) filter (where u.tipo = 'SUCURSAL'), 0) as stock_sucursales,
+  coalesce(sum(i.cantidad), 0)                                    as stock_total,
+  p.stock_minimo - coalesce(sum(i.cantidad), 0)                   as faltante
+from productos p
+left join inventario i  on i.producto_id = p.id
+left join ubicaciones u on u.id = i.ubicacion_id and u.tipo in ('SUCURSAL','DELIVERY')
+left join categorias c  on c.id = p.categoria_id
+where p.activo = true
+group by p.id, p.sku, p.nombre, p.imagen_url, c.nombre, p.stock_minimo
+having coalesce(sum(i.cantidad), 0) <= p.stock_minimo
+order by faltante desc;
+
+-- ---------------------------------------------------------------------
 -- DASHBOARD: totales globales
 -- ---------------------------------------------------------------------
 create or replace view v_dashboard_totales as
@@ -95,29 +119,6 @@ order by d.nombre;
 
 -- ---------------------------------------------------------------------
 -- ALERTA: productos bajo el mínimo (consolidado por producto)
--- ---------------------------------------------------------------------
-create or replace view v_productos_bajo_stock as
-select
-  p.id            as producto_id,
-  p.sku,
-  p.nombre        as producto,
-  p.imagen_url,
-  c.nombre        as categoria,
-  p.stock_minimo,
-  coalesce(sum(i.cantidad) filter (where u.tipo = 'SUCURSAL'), 0) as stock_sucursales,
-  coalesce(sum(i.cantidad), 0)                                    as stock_total,
-  p.stock_minimo - coalesce(sum(i.cantidad), 0)                   as faltante
-from productos p
-left join inventario i  on i.producto_id = p.id
-left join ubicaciones u on u.id = i.ubicacion_id and u.tipo in ('SUCURSAL','DELIVERY')
-left join categorias c  on c.id = p.categoria_id
-where p.activo = true
-group by p.id, p.sku, p.nombre, p.imagen_url, c.nombre, p.stock_minimo
-having coalesce(sum(i.cantidad), 0) <= p.stock_minimo
-order by faltante desc;
-
--- ---------------------------------------------------------------------
--- KARDEX: historial completo de un producto (entradas y salidas)
 -- ---------------------------------------------------------------------
 create or replace view v_kardex as
 select

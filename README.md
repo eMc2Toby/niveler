@@ -64,3 +64,32 @@ Las rutas de los módulos pendientes ya existen y muestran un aviso de
    `rpc_ajustar_stock`, …). Es lo único que garantiza que el inventario cuadre.
 2. En el `.env` va la `anon key`, jamás la `service_role`: esa clave se salta
    todas las políticas RLS.
+
+## Estado de la base de datos
+
+El proyecto de Supabase (`htsfrafhzptyxiqgahog`, región us-east-1) ya tiene
+ejecutados los ocho archivos de `db/`: 17 tablas, 10 vistas, 19 funciones,
+33 políticas RLS, los 6 roles, las 7 sucursales con sus ubicaciones, las 11
+ubicaciones (7 bodegas + tránsito, merma, proveedor, cliente), 7 categorías y
+los 80 productos del Excel. El bucket `productos` está creado y es público.
+
+Falta, y solo lo puedes hacer tú porque implica elegir una contraseña:
+
+1. **Authentication → Users → Add user** con tu correo y contraseña.
+2. Activarlo como administrador, en el SQL Editor:
+
+```sql
+update usuarios
+   set rol_id = (select id from roles where codigo = 'ADMIN'),
+       activo = true,
+       nombre_completo = 'Tu nombre'
+ where email = 'tu@correo.com';
+```
+
+3. Subir las imágenes al bucket (PowerShell, desde la raíz del proyecto):
+
+```powershell
+$env:SUPABASE_URL="https://htsfrafhzptyxiqgahog.supabase.co"
+$env:SUPABASE_SERVICE_ROLE_KEY="<la service_role de Settings > API Keys>"
+node scripts/subir-imagenes.mjs
+```
