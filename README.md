@@ -63,13 +63,26 @@ npx supabase gen types typescript --project-id TU_ID > src/types/database.ts
 Falta la exportación a Excel nativa (hoy se baja CSV, que Excel abre directo)
 y el módulo de auditoría, que hoy solo se consulta desde la base.
 
-## Dos reglas que no se rompen
+## Cuentas y roles
+
+Cada persona se registra desde el login (`/crear-cuenta`) y su cuenta nace
+inactiva. Un administrador le asigna rol y sucursal en **Usuarios**, y recién
+ahí ve datos. No hay alta de usuarios desde la app a propósito: la API de admin
+de Supabase exige la `service_role` key, que no puede estar en el navegador.
+
+Quién puede qué está en la sección 5 de [ESTRUCTURA.md](ESTRUCTURA.md) y en la
+propia app, en Usuarios → "Qué puede cada rol".
+
+## Tres reglas que no se rompen
 
 1. El stock **nunca** se edita con `update` desde el frontend. Solo por las
    funciones RPC (`rpc_registrar_movimiento`, `rpc_registrar_venta`,
    `rpc_ajustar_stock`, …). Es lo único que garantiza que el inventario cuadre.
 2. En el `.env` va la `anon key`, jamás la `service_role`: esa clave se salta
    todas las políticas RLS.
+3. Toda RPC que mueva stock verifica el nivel del rol por dentro
+   (`db/09_permisos_rpc.sql`). Son `security definer`, así que RLS no las
+   alcanza: esconder el botón en la app no alcanza para impedir la llamada.
 
 ## Estado de la base de datos
 

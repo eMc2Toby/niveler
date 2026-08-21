@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Boxes, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -127,8 +127,14 @@ export default function Login() {
           </button>
         </div>
 
-        <p className="mt-10 text-center text-xs text-slate-500">
-          Si aún no tienes acceso, pídele al administrador que cree tu cuenta.
+        <p className="mt-10 text-center text-sm text-slate-400">
+          ¿No tienes cuenta?{' '}
+          <Link to="/crear-cuenta" className="font-medium text-emerald-400 hover:underline">
+            Crear una
+          </Link>
+        </p>
+        <p className="mt-2 text-center text-xs text-slate-500">
+          Un administrador tiene que activarla antes de que puedas ver datos.
         </p>
       </div>
     </div>

@@ -1,16 +1,18 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { UserCog } from 'lucide-react'
+import { HelpCircle, UserCog } from 'lucide-react'
 import { Boton, Cargando, ErrorCarga, EstadoVacio, Etiqueta, Modal, Selector } from '@/components/ui'
 import { useSucursales } from '@/hooks/useCatalogos'
 import { api } from '@/lib/supabase'
 import { fecha } from '@/lib/formato'
 import { mensajeError } from '@/lib/utils'
+import { TablaRoles } from './Roles'
 
 export default function Usuarios() {
   const usuarios = useQuery({ queryKey: ['usuarios'], queryFn: api.usuarios })
   const [editando, setEditando] = useState<any | null>(null)
+  const [verRoles, setVerRoles] = useState(false)
 
   if (usuarios.isLoading) return <Cargando />
   if (usuarios.isError) return <ErrorCarga onReintentar={() => usuarios.refetch()} />
@@ -19,9 +21,31 @@ export default function Usuarios() {
 
   return (
     <div className="space-y-4">
-      <div className="hidden lg:block">
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Usuarios</h1>
-        <p className="text-sm text-slate-500">{usuarios.data?.length ?? 0} cuentas</p>
+      <div className="flex items-center justify-between gap-3">
+        <div className="hidden lg:block">
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Usuarios</h1>
+          <p className="text-sm text-slate-500">{usuarios.data?.length ?? 0} cuentas</p>
+        </div>
+        <Boton variante="secundario" className="ml-auto" onClick={() => setVerRoles(true)}>
+          <HelpCircle className="h-4 w-4" />
+          Qué puede cada rol
+        </Boton>
+      </div>
+
+      {/* Cómo se crean las cuentas. No hay formulario de alta aquí a
+          propósito: crear usuarios con la API de admin exige la
+          service_role key, que se salta RLS y no puede vivir en el
+          navegador. Cada uno se registra y aquí se le da permiso. */}
+      <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+        <p className="text-sm font-medium text-slate-900">Cómo se crea una cuenta</p>
+        <ol className="mt-1.5 space-y-1 text-sm text-slate-600">
+          <li>1. La persona entra a la app y toca <strong>Crear una</strong> en el login.</li>
+          <li>2. Aparece aquí como <strong>pendiente</strong>, sin ver ningún dato.</li>
+          <li>3. Tú le das rol y sucursal con <strong>Cambiar</strong>, y recién ahí entra.</li>
+        </ol>
+        <p className="mt-2 text-xs text-slate-500">
+          Comparte el enlace: <span className="font-mono">{window.location.origin}/crear-cuenta</span>
+        </p>
       </div>
 
       {/* Quien se registra nace inactivo y con el rol más bajo: alguien
@@ -37,7 +61,7 @@ export default function Usuarios() {
       {!usuarios.data?.length ? (
         <EstadoVacio
           titulo="No hay usuarios"
-          detalle="Las cuentas se crean desde Supabase → Authentication → Users. Aquí se les asigna rol y sucursal."
+          detalle="Cuando alguien se registre desde el login aparecerá aquí, esperando que le asignes rol y sucursal."
         />
       ) : (
         <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white">
@@ -72,6 +96,12 @@ export default function Usuarios() {
 
       {editando && (
         <ModalPermisos key={editando.id} usuario={editando} onCerrar={() => setEditando(null)} />
+      )}
+
+      {verRoles && (
+        <Modal abierto titulo="Qué puede cada rol" onCerrar={() => setVerRoles(false)} ancho="max-w-3xl">
+          <TablaRoles />
+        </Modal>
       )}
     </div>
   )

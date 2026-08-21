@@ -19,6 +19,7 @@ type ContextoAuth = {
   perfil: Perfil | null
   cargando: boolean
   entrar: (email: string, password: string) => Promise<void>
+  registrar: (email: string, password: string, nombre: string) => Promise<string>
   salir: () => Promise<void>
   recuperar: (email: string) => Promise<void>
 }
@@ -96,6 +97,35 @@ export function ProveedorAuth({ children }: { children: ReactNode }) {
         throw new Error('No se pudo iniciar sesión. Revisa tu conexión e inténtalo de nuevo.')
       }
     },
+    /**
+     * Alta de cuenta. La hace la propia persona desde el login, no un
+     * administrador: crear un usuario con la API de admin exigiría la
+     * service_role key, y esa clave no puede vivir en el navegador.
+     *
+     * El trigger `fn_nuevo_usuario` de la base recibe el alta y crea el
+     * perfil INACTIVO y con el rol más bajo. Hasta que un admin lo apruebe
+     * en Usuarios, la cuenta entra pero no ve nada.
+     */
+    async registrar(email, password, nombre) {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { nombre_completo: nombre } },
+      })
+      if (error) {
+        if (error.message.includes('already registered'))
+          throw new Error('Ese correo ya tiene una cuenta. Intenta entrar.')
+        if (error.message.includes('at least'))
+          throw new Error('La contraseña debe tener al menos 6 caracteres.')
+        throw new Error('No se pudo crear la cuenta. Revisa el correo e inténtalo de nuevo.')
+      }
+      // Con confirmación de correo activada, la sesión llega vacía y hay
+      // que confirmar antes de poder entrar.
+      return data.session
+        ? 'Cuenta creada. Un administrador debe activarla antes de que puedas usarla.'
+        : 'Cuenta creada. Revisa tu correo para confirmarla, y pídele a un administrador que la active.'
+    },
+
     async salir() {
       await supabase.auth.signOut()
       setPerfil(null)

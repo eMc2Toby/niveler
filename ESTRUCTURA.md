@@ -144,18 +144,31 @@ niveler/
 
 ---
 
-## 5. Roles y qué ve cada uno
+## 5. Roles y qué puede cada uno
 
-| Rol | Nivel | Alcance |
-|---|---|---|
-| Administrador | 100 | Todo, incluidos usuarios y configuración |
-| Gerente | 80 | Las 7 ciudades, reportes, anulaciones |
-| Encargado de sucursal | 60 | Su ciudad: productos, ajustes, aprobaciones |
-| Bodega | 40 | Movimientos y transferencias de su sucursal |
-| Ventas | 30 | Registra ventas y clientes de su sucursal |
-| Delivery | 10 | Solo su propio stock y sus propias ventas |
+Las cuentas no las crea un administrador: **cada persona se registra desde el login** y nace inactiva, sin rol útil. Crear usuarios desde la app exigiría la `service_role` key, que se salta todas las políticas RLS y por eso no puede vivir en el navegador. El administrador aprueba en **Usuarios**, y ahí asigna rol y sucursal.
 
-Esto no es solo un menú distinto por rol: es RLS en la base. Un repartidor que consulte la API directamente sigue recibiendo únicamente sus datos.
+| Puede | Admin | Gerente | Encargado | Bodega | Ventas | Delivery |
+|---|:--:|:--:|:--:|:--:|:--:|:--:|
+| Ver stock y catálogo | sí | sí | sí | sí | sí | sí |
+| Registrar ventas | sí | sí | sí | sí | sí | sí |
+| Crear y editar clientes | sí | sí | sí | sí | sí | — |
+| Movimientos y transferencias | sí | sí | sí | sí | — | — |
+| Crear y editar productos | sí | sí | sí | — | — | — |
+| Ajustar stock por conteo | sí | sí | sí | — | — | — |
+| Anular movimientos y ventas | sí | sí | sí | — | — | — |
+| Reportes | sí | sí | sí | — | — | — |
+| Ver las 7 ciudades | sí | sí | — | — | — | — |
+| Sucursales y usuarios | sí | — | — | — | — | — |
+| **Alcance de los datos** | todo | 7 ciudades | su ciudad | su ciudad | su ciudad | su propio stock |
+
+Los niveles numéricos son 100, 80, 60, 40, 30 y 10. Quien solo debe **mirar** es Delivery o Ventas: ninguno puede cargar mercadería ni corregir un saldo, y lo único que mueve stock en sus manos es una venta, que descuenta de su propia ubicación.
+
+**Esto se verifica en tres capas, y las tres importan:**
+
+1. **El menú** oculta lo que no corresponde. Es comodidad, no seguridad.
+2. **Las políticas RLS** filtran las filas. Un repartidor que consulte la API directamente recibe solo sus datos.
+3. **Las funciones RPC** verifican el nivel por dentro (`09_permisos_rpc.sql`). Esta capa hace falta porque las RPC son `security definer`: se ejecutan con permisos elevados y RLS no las alcanza. Sin ella, cualquier usuario logueado podía llamar a `rpc_ajustar_stock` o `sp_anular_movimiento` contra la API aunque la app no le mostrara el botón.
 
 ---
 

@@ -6,6 +6,7 @@ import { Toaster } from 'sonner'
 import { ProveedorAuth, useAuth, usePermisos } from '@/hooks/useAuth'
 import Layout from '@/components/layout/Layout'
 import Login from '@/features/auth/Login'
+import Registro from '@/features/auth/Registro'
 import Dashboard from '@/features/dashboard/Dashboard'
 import ListaProductos from '@/features/productos/Lista'
 import Inventario from '@/features/inventario/Inventario'
@@ -75,6 +76,7 @@ export default function App() {
           <Toaster position="top-center" richColors />
           <Routes>
             <Route path="/entrar" element={<Login />} />
+            <Route path="/crear-cuenta" element={<Registro />} />
 
             <Route
               element={
