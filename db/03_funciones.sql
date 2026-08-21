@@ -146,7 +146,7 @@ end $$;
 -- ---------------------------------------------------------------------
 -- RPC: REGISTRAR MOVIMIENTO (entrada, salida, ajuste, entrega a delivery)
 -- ---------------------------------------------------------------------
--- p_items: [{"producto_id":"uuid","cantidad":5,"costo_unitario":120}]
+-- p_items: [{"producto_id":"uuid","cantidad":5}]
 create or replace function rpc_registrar_movimiento(
   p_tipo tipo_movimiento,
   p_ubicacion_origen_id uuid,
@@ -172,12 +172,11 @@ begin
   returning id into v_mov_id;
 
   for v_item in select * from jsonb_array_elements(p_items) loop
-    insert into movimientos_detalle (movimiento_id, producto_id, cantidad, costo_unitario)
+    insert into movimientos_detalle (movimiento_id, producto_id, cantidad)
     values (
       v_mov_id,
       (v_item->>'producto_id')::uuid,
-      (v_item->>'cantidad')::numeric,
-      coalesce((v_item->>'costo_unitario')::numeric, 0)
+      (v_item->>'cantidad')::numeric
     );
   end loop;
 
@@ -191,14 +190,12 @@ end $$;
 -- ---------------------------------------------------------------------
 -- Crea la venta, su detalle y el movimiento de salida en una sola
 -- transacción. Si no hay stock, no se crea nada.
--- p_items: [{"producto_id":"uuid","cantidad":2,"precio_unitario":150,"descuento":0}]
+-- p_items: [{"producto_id":"uuid","cantidad":2}]
 create or replace function rpc_registrar_venta(
   p_ubicacion_id uuid,
   p_items jsonb,
   p_cliente_id uuid default null,
-  p_forma_pago forma_pago default 'EFECTIVO',
   p_estado estado_venta default 'ENTREGADA',
-  p_descuento numeric default 0,
   p_observaciones text default null
 ) returns jsonb language plpgsql security definer set search_path = public as $$
 declare
@@ -207,7 +204,6 @@ declare
   v_item        jsonb;
   v_ubic        ubicaciones;
   v_ubic_cliente uuid;
-  v_subtotal    numeric := 0;
   v_mov_id      uuid;
 begin
   select * into v_ubic from ubicaciones where id = p_ubicacion_id;
@@ -217,34 +213,25 @@ begin
   v_codigo := fn_generar_codigo('VTA', 'seq_venta');
 
   insert into ventas (codigo, cliente_id, sucursal_id, delivery_id, ubicacion_id,
-                      usuario_id, forma_pago, estado, descuento, observaciones)
+                      usuario_id, estado, observaciones)
   values (v_codigo, p_cliente_id,
           coalesce(v_ubic.sucursal_id,
                    (select sucursal_base_id from deliveries where id = v_ubic.delivery_id)),
           v_ubic.delivery_id, p_ubicacion_id, auth.uid(),
-          p_forma_pago, p_estado, p_descuento, p_observaciones)
+          p_estado, p_observaciones)
   returning id into v_venta_id;
 
   for v_item in select * from jsonb_array_elements(p_items) loop
-    insert into ventas_detalle (venta_id, producto_id, cantidad, precio_unitario, descuento)
+    insert into ventas_detalle (venta_id, producto_id, cantidad)
     values (
       v_venta_id,
       (v_item->>'producto_id')::uuid,
-      (v_item->>'cantidad')::numeric,
-      (v_item->>'precio_unitario')::numeric,
-      coalesce((v_item->>'descuento')::numeric, 0)
+      (v_item->>'cantidad')::numeric
     );
   end loop;
 
-  select coalesce(sum(subtotal), 0) into v_subtotal
-  from ventas_detalle where venta_id = v_venta_id;
-
-  update ventas
-    set subtotal = v_subtotal, total = v_subtotal - p_descuento
-    where id = v_venta_id;
-
   -- El stock sale solo si la mercadería ya se entregó.
-  if p_estado in ('ENTREGADA', 'PAGADA') then
+  if p_estado = 'ENTREGADA' then
     insert into movimientos (codigo, tipo, estado, ubicacion_origen_id, ubicacion_destino_id,
                              usuario_id, referencia_tabla, referencia_id, observaciones)
     values (fn_generar_codigo('MOV','seq_movimiento'), 'VENTA', 'BORRADOR',
@@ -252,9 +239,9 @@ begin
             'Venta ' || v_codigo)
     returning id into v_mov_id;
 
-    insert into movimientos_detalle (movimiento_id, producto_id, cantidad, costo_unitario)
-    select v_mov_id, vd.producto_id, vd.cantidad, p.precio_costo
-    from ventas_detalle vd join productos p on p.id = vd.producto_id
+    insert into movimientos_detalle (movimiento_id, producto_id, cantidad)
+    select v_mov_id, vd.producto_id, vd.cantidad
+    from ventas_detalle vd
     where vd.venta_id = v_venta_id;
 
     perform sp_confirmar_movimiento(v_mov_id);  -- lanza excepción si falta stock
@@ -268,7 +255,7 @@ begin
         and i.ubicacion_id = p_ubicacion_id;
   end if;
 
-  return jsonb_build_object('id', v_venta_id, 'codigo', v_codigo, 'total', v_subtotal - p_descuento);
+  return jsonb_build_object('id', v_venta_id, 'codigo', v_codigo, 'estado', p_estado);
 end $$;
 
 

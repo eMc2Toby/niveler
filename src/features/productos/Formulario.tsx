@@ -4,8 +4,8 @@ import { z } from 'zod'
 import { Boton, Campo, Modal, Selector } from '@/components/ui'
 import { useCategorias, useGuardarProducto, useMarcas } from '@/hooks/useProductos'
 
-// El mismo contrato que impone la base en 01_schema.sql: precios y mínimo
-// no negativos, SKU único. Validar aquí evita un viaje al servidor para
+// El mismo contrato que impone la base en 01_schema.sql: SKU único y
+// mínimo no negativo. Validar aquí evita un viaje al servidor para
 // enterarse de algo que ya sabíamos.
 const esquema = z.object({
   sku: z.string().trim().min(1, 'El código es obligatorio').max(30),
@@ -14,8 +14,6 @@ const esquema = z.object({
   categoria_id: z.string().optional(),
   marca_id: z.string().optional(),
   unidad_medida: z.string().min(1),
-  precio_venta: z.coerce.number().min(0, 'No puede ser negativo'),
-  precio_costo: z.coerce.number().min(0, 'No puede ser negativo'),
   stock_minimo: z.coerce.number().min(0, 'No puede ser negativo'),
   activo: z.boolean(),
 })
@@ -48,8 +46,6 @@ export default function FormularioProducto({
       categoria_id: producto?.categoria_id ?? '',
       marca_id: producto?.marca_id ?? '',
       unidad_medida: producto?.unidad_medida ?? 'UNIDAD',
-      precio_venta: producto?.precio_venta ?? 0,
-      precio_costo: producto?.precio_costo ?? 0,
       stock_minimo: producto?.stock_minimo ?? 0,
       activo: producto?.activo ?? true,
     },
@@ -109,27 +105,13 @@ export default function FormularioProducto({
           </Selector>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Campo
-            etiqueta="Precio venta (Bs)"
-            type="number" step="0.01" inputMode="decimal"
-            error={errors.precio_venta?.message}
-            {...register('precio_venta')}
-          />
-          <Campo
-            etiqueta="Precio costo (Bs)"
-            type="number" step="0.01" inputMode="decimal"
-            error={errors.precio_costo?.message}
-            {...register('precio_costo')}
-          />
-          <Campo
-            etiqueta="Stock mínimo"
-            type="number" step="1" inputMode="numeric"
-            ayuda="Avisa cuando baje"
-            error={errors.stock_minimo?.message}
-            {...register('stock_minimo')}
-          />
-        </div>
+        <Campo
+          etiqueta="Stock mínimo"
+          type="number" step="1" inputMode="numeric"
+          ayuda="El sistema avisa cuando el stock baje de aquí"
+          error={errors.stock_minimo?.message}
+          {...register('stock_minimo')}
+        />
 
         <div>
           <label htmlFor="descripcion" className="mb-1.5 block text-sm font-medium text-slate-700">

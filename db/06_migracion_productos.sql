@@ -1,9 +1,9 @@
 -- =====================================================================
 -- 06_migracion_productos.sql  ·  generado desde INVENTARIO_NIVELER.xlsx
 -- =====================================================================
--- Los 80 productos del Excel, con su codigo, nombre e imagen. El Excel no
--- traia precios ni stock minimo: quedan en 0 y se completan desde la app
--- (Productos > Editar) o con un update masivo cuando esten definidos.
+-- Los 80 productos del Excel, con su codigo, nombre e imagen. El sistema no
+-- maneja precios: solo se registra que un producto salio y de donde. El
+-- stock minimo queda en 0 y se ajusta desde la app (Productos > Editar).
 --
 -- Es idempotente: se puede volver a ejecutar sin duplicar nada.
 -- Ejecutar despues de 05_seed.sql.

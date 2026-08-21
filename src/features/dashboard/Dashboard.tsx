@@ -6,11 +6,11 @@ import {
 import { Boxes, Truck, TriangleAlert, ArrowRightLeft, Loader2 } from 'lucide-react'
 import { api, suscribirInventario } from '@/lib/supabase'
 import { usePermisos, useAuth } from '@/hooks/useAuth'
-import { bs, numero } from '@/lib/formato'
+import { numero } from '@/lib/formato'
 
 export default function Dashboard() {
   const { perfil } = useAuth()
-  const { verTodasLasSucursales, verCostos } = usePermisos()
+  const { verTodasLasSucursales } = usePermisos()
   const qc = useQueryClient()
 
   const totales = useQuery({ queryKey: ['dashboard'], queryFn: api.dashboard })
@@ -91,20 +91,16 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Ventas del día */}
+      {/* Salidas del día */}
       <div className="rounded-xl border border-slate-200 bg-white p-5">
-        <p className="text-sm text-slate-500">Ventas de hoy</p>
+        <p className="text-sm text-slate-500">Vendido hoy</p>
         <p className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">
-          {bs(t.ventas_hoy_monto)}
+          {numero(t.unidades_hoy)}
         </p>
         <p className="text-sm text-slate-500">
-          {numero(t.ventas_hoy_cantidad)} {t.ventas_hoy_cantidad === 1 ? 'venta' : 'ventas'}
+          unidades en {numero(t.ventas_hoy_cantidad)}{' '}
+          {t.ventas_hoy_cantidad === 1 ? 'registro' : 'registros'}
         </p>
-        {verCostos && (
-          <p className="mt-3 border-t border-slate-100 pt-3 text-sm text-slate-500">
-            Valor del inventario a costo: <strong className="text-slate-900">{bs(t.valor_inventario)}</strong>
-          </p>
-        )}
       </div>
 
       {/* Stock por ciudad */}

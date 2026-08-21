@@ -45,14 +45,10 @@ create type estado_transferencia as enum (
 
 create type estado_venta as enum (
   'PENDIENTE',   -- registrada, mercadería aún no entregada
-  'ENTREGADA',   -- entregada al cliente, puede estar impaga (crédito)
-  'PAGADA',      -- cerrada
+  'ENTREGADA',   -- entregada al cliente, ya salió del stock
   'ANULADA'
 );
 
-create type forma_pago as enum (
-  'EFECTIVO', 'QR_PAGO', 'TRANSFERENCIA_BANCARIA', 'TARJETA', 'CREDITO'
-);
 
 create type accion_auditoria as enum ('INSERT', 'UPDATE', 'DELETE');
 
@@ -170,8 +166,6 @@ create table productos (
   categoria_id   uuid references categorias(id),
   marca_id       uuid references marcas(id),
   unidad_medida  text not null default 'UNIDAD',
-  precio_venta   numeric(12,2) not null default 0 check (precio_venta >= 0),
-  precio_costo   numeric(12,2) not null default 0 check (precio_costo >= 0),
   imagen_url     text,                          -- ruta en Supabase Storage
   stock_minimo   numeric(12,2) not null default 0 check (stock_minimo >= 0),
   activo         boolean not null default true,
@@ -240,7 +234,6 @@ create table movimientos_detalle (
   movimiento_id  uuid not null references movimientos(id) on delete cascade,
   producto_id    uuid not null references productos(id),
   cantidad       numeric(12,2) not null check (cantidad > 0),
-  costo_unitario numeric(12,2) not null default 0,
   observacion    text
 );
 create index idx_mov_detalle_movimiento on movimientos_detalle(movimiento_id);
@@ -276,11 +269,7 @@ create table ventas (
   delivery_id  uuid references deliveries(id),
   ubicacion_id uuid not null references ubicaciones(id), -- de dónde sale la mercadería
   usuario_id   uuid references usuarios(id),             -- quién registró
-  forma_pago   forma_pago not null default 'EFECTIVO',
   estado       estado_venta not null default 'PENDIENTE',
-  subtotal     numeric(12,2) not null default 0,
-  descuento    numeric(12,2) not null default 0,
-  total        numeric(12,2) not null default 0,
   observaciones text,
   created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now()
@@ -295,11 +284,7 @@ create table ventas_detalle (
   id              uuid primary key default gen_random_uuid(),
   venta_id        uuid not null references ventas(id) on delete cascade,
   producto_id     uuid not null references productos(id),
-  cantidad        numeric(12,2) not null check (cantidad > 0),
-  precio_unitario numeric(12,2) not null check (precio_unitario >= 0),
-  descuento       numeric(12,2) not null default 0,
-  subtotal        numeric(12,2) generated always as
-                    (cantidad * precio_unitario - descuento) stored
+  cantidad        numeric(12,2) not null check (cantidad > 0)
 );
 create index idx_venta_detalle_venta on ventas_detalle(venta_id);
 create index idx_venta_detalle_producto on ventas_detalle(producto_id);

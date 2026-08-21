@@ -3,13 +3,13 @@ import { Plus, Search, SlidersHorizontal } from 'lucide-react'
 import { Boton, Campo, Cargando, ErrorCarga, EstadoVacio, Etiqueta } from '@/components/ui'
 import { useActivarProducto, useProductos } from '@/hooks/useProductos'
 import { usePermisos } from '@/hooks/useAuth'
-import { bs, numero } from '@/lib/formato'
+import { numero } from '@/lib/formato'
 import { normalizar } from '@/lib/utils'
 import FormularioProducto from './Formulario'
 import DetalleProducto, { Imagen } from './Detalle'
 
 export default function ListaProductos() {
-  const { editarProductos, verCostos } = usePermisos()
+  const { editarProductos } = usePermisos()
   const productos = useProductos()
   const activar = useActivarProducto()
 
@@ -109,10 +109,8 @@ export default function ListaProductos() {
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-medium text-slate-900">{bs(p.precio_venta)}</p>
-                  {verCostos && (
-                    <p className="text-xs text-slate-500">costo {bs(p.precio_costo)}</p>
-                  )}
+                  <p className="text-xs text-slate-500">mínimo</p>
+                  <p className="text-sm font-medium text-slate-900">{numero(p.stock_minimo)}</p>
                 </div>
               </button>
 

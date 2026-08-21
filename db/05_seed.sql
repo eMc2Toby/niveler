@@ -8,7 +8,7 @@
 -- ---------------------------------------------------------------------
 insert into roles (codigo, nombre, nivel, permisos) values
 ('ADMIN',     'Administrador',        100, '{"todo": true}'),
-('GERENTE',   'Gerente general',       80, '{"reportes": true, "ver_costos": true, "anular": true}'),
+('GERENTE',   'Gerente general',       80, '{"reportes": true, "anular": true}'),
 ('ENCARGADO', 'Encargado de sucursal', 60, '{"productos.editar": true, "ajustes": true}'),
 ('BODEGA',    'Bodega',                40, '{"movimientos": true, "transferencias": true}'),
 ('VENTAS',    'Ventas',                30, '{"ventas": true, "clientes": true}'),
@@ -73,31 +73,21 @@ on conflict (nombre) do nothing;
 
 
 -- =====================================================================
--- MIGRACIÓN DEL EXCEL HISTÓRICO
+-- CARGA DE DATOS REALES
 -- =====================================================================
--- Los datos actuales (80 productos, 7 ciudades, 1589 movimientos) se
--- cargan así:
+-- Los 80 productos del Excel ya están en 06_migracion_productos.sql, y
+-- las imágenes se suben con scripts/subir-imagenes.mjs.
 --
--- 1. PRODUCTOS: exportar la hoja Productos a CSV y subirla con
---    Supabase > Table Editor > productos > Import data from CSV.
---    Columnas: sku, nombre, categoria_id, precio_venta, stock_minimo, activo
---
--- 2. SALDOS INICIALES: en lugar de importar los 1589 movimientos
---    históricos uno por uno, registrar un único movimiento de ENTRADA
---    por sucursal con el saldo actual de cada producto. El histórico
---    viejo queda archivado en Drive como respaldo; el sistema nuevo
---    empieza con saldos limpios y verificados.
+-- Los saldos iniciales NO se importan movimiento por movimiento: se
+-- registra una sola ENTRADA por sucursal con el conteo físico actual.
+-- El Excel viejo queda archivado como respaldo y el sistema arranca con
+-- saldos verificados.
 --
 --    select rpc_registrar_movimiento(
 --      'ENTRADA',
 --      (select id from ubicaciones where codigo='UBI-PROVEEDOR'),
 --      (select id from ubicaciones where codigo='UBI-SUC-CBB'),
---      '[{"producto_id":"...","cantidad":12,"costo_unitario":80}]'::jsonb,
---      'Saldo inicial migrado desde Excel — corte 2026-08-20'
+--      '[{"producto_id":"...","cantidad":12}]'::jsonb,
+--      'Saldo inicial, conteo físico'
 --    );
---
--- 3. IMÁGENES: subir el contenido de imagenes_productos.zip al bucket
---    "productos" de Supabase Storage y actualizar imagen_url:
---
---    update productos set imagen_url = sku || '.jpg';
 -- =====================================================================

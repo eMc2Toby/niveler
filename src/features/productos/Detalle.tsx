@@ -2,8 +2,7 @@ import { Package } from 'lucide-react'
 import { Cargando, Etiqueta, Modal } from '@/components/ui'
 import { useProducto, useStockDeProducto } from '@/hooks/useProductos'
 import { urlImagen } from '@/lib/supabase'
-import { bs, numero } from '@/lib/formato'
-import { usePermisos } from '@/hooks/useAuth'
+import { numero } from '@/lib/formato'
 
 export default function DetalleProducto({
   productoId, onCerrar,
@@ -11,7 +10,6 @@ export default function DetalleProducto({
   productoId: string | null
   onCerrar: () => void
 }) {
-  const { verCostos } = usePermisos()
   const producto = useProducto(productoId ?? undefined)
   const stock = useStockDeProducto(productoId ?? undefined)
 
@@ -44,10 +42,8 @@ export default function DetalleProducto({
           {p.descripcion && <p className="text-sm text-slate-600">{p.descripcion}</p>}
 
           <div className="grid grid-cols-2 gap-3">
-            <Dato titulo="Precio de venta" valor={bs(p.precio_venta)} />
-            {verCostos && <Dato titulo="Costo" valor={bs(p.precio_costo)} />}
-            <Dato titulo="Stock mínimo" valor={`${numero(p.stock_minimo)} ${p.unidad_medida.toLowerCase()}`} />
-            <Dato titulo="Stock total" valor={numero(total)} />
+            <Dato titulo="Stock total" valor={`${numero(total)} ${p.unidad_medida.toLowerCase()}`} />
+            <Dato titulo="Stock mínimo" valor={numero(p.stock_minimo)} />
           </div>
 
           <div>

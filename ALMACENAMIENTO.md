@@ -8,10 +8,10 @@ Es importante separar dos cosas, porque se cuentan por separado y tienen límite
 
 | | Qué guarda | Cuota en Supabase Free |
 |---|---|---|
-| **Base de datos (PostgreSQL)** | Nombre, código, precio, stock, categoría, movimientos, ventas | **500 MB** |
+| **Base de datos (PostgreSQL)** | Nombre, código, stock, categoría, movimientos, ventas | **500 MB** |
 | **Storage (archivos)** | Las imágenes de los productos | **1 GB** |
 
-Los datos del producto ocupan poquísimo en PostgreSQL. Una fila completa de producto —con nombre, SKU, descripción, precios y todos los campos— pesa alrededor de **1 KB**. Un movimiento con su detalle, unos 300 bytes.
+Los datos del producto ocupan poquísimo en PostgreSQL. Una fila completa de producto —con nombre, SKU, descripción y todos los campos— pesa alrededor de **1 KB**. Un movimiento con su detalle, unos 300 bytes.
 
 Las imágenes no viven en la base: van a Supabase Storage y consumen la cuota de archivos, no la de la base de datos. En la tabla `productos` solo se guarda la ruta (`PRD-001.webp`), que son unos 15 bytes.
 

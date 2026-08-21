@@ -41,14 +41,12 @@ export function urlImagen(ruta: string | null | undefined) {
 export type ItemMovimiento = {
   producto_id: string
   cantidad: number
-  costo_unitario?: number
 }
 
+/** Una venta registra qué salió y cuánto, nada de dinero. */
 export type ItemVenta = {
   producto_id: string
   cantidad: number
-  precio_unitario: number
-  descuento?: number
 }
 
 export type ProductoFormulario = {
@@ -58,8 +56,6 @@ export type ProductoFormulario = {
   categoria_id?: string | null
   marca_id?: string | null
   unidad_medida: string
-  precio_venta: number
-  precio_costo: number
   stock_minimo: number
   activo: boolean
 }
@@ -209,17 +205,15 @@ export const api = {
     ubicacionId: string
     items: ItemVenta[]
     clienteId?: string
-    formaPago?: string
-    estado?: string
-    descuento?: number
+    estado?: 'ENTREGADA' | 'PENDIENTE'
+    observaciones?: string
   }) {
     const { data, error } = await supabase.rpc('rpc_registrar_venta', {
       p_ubicacion_id: args.ubicacionId,
       p_items: args.items,
       p_cliente_id: args.clienteId ?? null,
-      p_forma_pago: args.formaPago ?? 'EFECTIVO',
       p_estado: args.estado ?? 'ENTREGADA',
-      p_descuento: args.descuento ?? 0,
+      p_observaciones: args.observaciones ?? null,
     })
     if (error) throw new Error(error.message)
     return data

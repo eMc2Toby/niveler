@@ -67,8 +67,6 @@ export type Producto = {
   categoria_id: string | null
   marca_id: string | null
   unidad_medida: string
-  precio_venta: number
-  precio_costo: number
   imagen_url: string | null
   stock_minimo: number
   activo: boolean
@@ -106,8 +104,6 @@ export type FilaStock = {
   producto: string
   imagen_url: string | null
   stock_minimo: number
-  precio_venta: number
-  precio_costo: number
   categoria: string | null
   marca: string | null
   ubicacion_id: string
@@ -120,7 +116,6 @@ export type FilaStock = {
   cantidad: number
   cantidad_reservada: number
   cantidad_disponible: number
-  valor_costo: number
   actualizado_en: string
 }
 

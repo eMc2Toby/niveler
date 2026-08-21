@@ -57,6 +57,8 @@ Un solo motor (`sp_confirmar_movimiento`) atiende los ocho casos. No hay lógica
 
 **Segunda regla:** el saldo de `inventario` es una consecuencia, no un dato editable. Nadie —ni el admin— hace `UPDATE` sobre el stock. Solo se registran movimientos, y el saldo se recalcula desde ellos. Si alguna vez se sospecha un descuadre, `fn_recalcular_inventario()` reconstruye los 560 saldos desde cero. Esto es exactamente lo que faltaba en el Excel: ahí el saldo se arrastraba a mano y por eso aparecían negativos.
 
+**Tercera regla: el sistema no maneja dinero.** No hay precios, ni totales, ni formas de pago. Una venta responde a tres preguntas —qué producto, cuántas unidades y de qué ubicación salió— y nada más. Esto no es una simplificación provisional: mezclar inventario con facturación obliga a decidir qué precio vale cuando cambió entre el pedido y la entrega, cómo se prorratean descuentos y qué pasa con las anulaciones parciales. Nada de eso hace falta para saber dónde está la mercadería. Si algún día se necesita facturar, se agrega una tabla de precios aparte que referencia a `productos`, sin tocar el motor de stock.
+
 ---
 
 ## 3. Estructura de carpetas
@@ -147,7 +149,7 @@ niveler/
 | Rol | Nivel | Alcance |
 |---|---|---|
 | Administrador | 100 | Todo, incluidos usuarios y configuración |
-| Gerente | 80 | Las 7 ciudades, costos, márgenes, anulaciones |
+| Gerente | 80 | Las 7 ciudades, reportes, anulaciones |
 | Encargado de sucursal | 60 | Su ciudad: productos, ajustes, aprobaciones |
 | Bodega | 40 | Movimientos y transferencias de su sucursal |
 | Ventas | 30 | Registra ventas y clientes de su sucursal |

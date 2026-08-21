@@ -1,7 +1,6 @@
 -- =====================================================================
 -- 08_grants.sql · permisos de tabla y vistas que respetan RLS
 -- =====================================================================
--- Ejecutado el 2026-08-20 en el proyecto htsfrafhzptyxiqgahog.
 --
 -- Dos cosas que hacen falta y que 04_rls.sql no cubre:
 --

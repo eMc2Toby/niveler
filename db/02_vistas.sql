@@ -15,8 +15,6 @@ select
   p.nombre            as producto,
   p.imagen_url,
   p.stock_minimo,
-  p.precio_venta,
-  p.precio_costo,
   c.nombre            as categoria,
   m.nombre            as marca,
   u.id                as ubicacion_id,
@@ -29,7 +27,6 @@ select
   i.cantidad,
   i.cantidad_reservada,
   i.cantidad_disponible,
-  (i.cantidad * p.precio_costo) as valor_costo,
   i.actualizado_en
 from inventario i
 join productos p   on p.id = i.producto_id
@@ -72,13 +69,12 @@ select
   (select coalesce(sum(cantidad),0) from v_stock)                                   as stock_total,
   (select coalesce(sum(cantidad),0) from v_stock where tipo_ubicacion='SUCURSAL')   as stock_sucursales,
   (select coalesce(sum(cantidad),0) from v_stock where tipo_ubicacion='DELIVERY')   as stock_deliveries,
-  (select coalesce(sum(valor_costo),0) from v_stock)                                as valor_inventario,
   (select count(*) from v_productos_bajo_stock)                                     as productos_bajo_stock,
   (select count(*) from transferencias where estado in ('ENVIADA','RECIBIDA_PARCIAL')) as transferencias_pendientes,
-  (select coalesce(sum(total),0) from ventas
-     where estado <> 'ANULADA' and fecha::date = current_date)                      as ventas_hoy_monto,
   (select count(*) from ventas
-     where estado <> 'ANULADA' and fecha::date = current_date)                      as ventas_hoy_cantidad;
+     where estado <> 'ANULADA' and fecha::date = current_date)                      as ventas_hoy_cantidad,
+  (select coalesce(sum(vd.cantidad),0) from ventas_detalle vd join ventas v on v.id = vd.venta_id
+     where v.estado <> 'ANULADA' and v.fecha::date = current_date)                  as unidades_hoy;
 
 -- ---------------------------------------------------------------------
 -- DASHBOARD: stock por sucursal
@@ -90,8 +86,7 @@ select
   s.nombre        as sucursal,
   s.ciudad,
   count(distinct v.producto_id)      as productos_distintos,
-  coalesce(sum(v.cantidad), 0)       as unidades,
-  coalesce(sum(v.valor_costo), 0)    as valor_costo
+  coalesce(sum(v.cantidad), 0)       as unidades
 from sucursales s
 left join v_stock v on v.sucursal_id = s.id
 where s.activo = true
@@ -108,8 +103,7 @@ select
   d.nombre         as delivery,
   s.nombre         as sucursal_base,
   count(distinct v.producto_id)   as productos_distintos,
-  coalesce(sum(v.cantidad), 0)    as unidades,
-  coalesce(sum(v.cantidad * v.precio_venta), 0) as valor_venta
+  coalesce(sum(v.cantidad), 0)    as unidades
 from deliveries d
 join sucursales s on s.id = d.sucursal_base_id
 left join v_stock v on v.delivery_id = d.id
@@ -134,7 +128,6 @@ select
   ud.nombre         as destino,
   ud.tipo           as tipo_destino,
   md.cantidad,
-  md.costo_unitario,
   us.nombre_completo as usuario,
   m.observaciones,
   m.referencia_tabla,
@@ -158,7 +151,6 @@ select
   p.nombre  as producto,
   c.nombre  as categoria,
   sum(vd.cantidad)   as unidades_vendidas,
-  sum(vd.subtotal)   as monto_vendido,
   count(distinct v.id) as numero_ventas,
   max(v.fecha)       as ultima_venta
 from ventas_detalle vd
@@ -199,7 +191,6 @@ select
   v.sucursal_id,
   s.nombre                 as sucursal,
   count(*)                 as numero_ventas,
-  sum(v.total)             as monto_total,
   sum(vd.unidades)         as unidades
 from ventas v
 left join sucursales s on s.id = v.sucursal_id

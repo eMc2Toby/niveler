@@ -125,7 +125,6 @@ export function usePermisos() {
     nivel,
     esAdmin: nivel >= 100,
     verTodasLasSucursales: nivel >= 80,
-    verCostos: nivel >= 80,
     editarProductos: nivel >= 60,
     ajustarStock: nivel >= 60,
     moverStock: nivel >= 40,

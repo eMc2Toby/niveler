@@ -1,7 +1,6 @@
 -- =====================================================================
 -- 07_storage.sql · bucket de imágenes de productos
 -- =====================================================================
--- Ejecutado el 2026-08-20 en el proyecto htsfrafhzptyxiqgahog.
 --
 -- El bucket es público: las imágenes se sirven por URL directa y quedan
 -- en caché del service worker, así el delivery las ve sin datos. Lo que
