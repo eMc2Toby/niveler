@@ -1,8 +1,10 @@
+import { useState } from 'react'
 import { Package } from 'lucide-react'
 import { Cargando, Etiqueta, Modal } from '@/components/ui'
 import { useProducto, useStockDeProducto } from '@/hooks/useProductos'
 import { urlImagen } from '@/lib/supabase'
 import { numero } from '@/lib/formato'
+import Kardex from './Kardex'
 
 export default function DetalleProducto({
   productoId, onCerrar,
@@ -10,6 +12,7 @@ export default function DetalleProducto({
   productoId: string | null
   onCerrar: () => void
 }) {
+  const [pestana, setPestana] = useState<'resumen' | 'kardex'>('resumen')
   const producto = useProducto(productoId ?? undefined)
   const stock = useStockDeProducto(productoId ?? undefined)
 
@@ -39,6 +42,25 @@ export default function DetalleProducto({
             </div>
           </div>
 
+          <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
+            {([['resumen', 'Dónde está'], ['kardex', 'Kardex']] as const).map(([id, texto]) => (
+              <button
+                key={id}
+                onClick={() => setPestana(id)}
+                aria-pressed={pestana === id}
+                className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition ${
+                  pestana === id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'
+                }`}
+              >
+                {texto}
+              </button>
+            ))}
+          </div>
+
+          {pestana === 'kardex' ? (
+            <Kardex productoId={p.id} sku={p.sku} />
+          ) : (
+          <div className="space-y-6">
           {p.descripcion && <p className="text-sm text-slate-600">{p.descripcion}</p>}
 
           <div className="grid grid-cols-2 gap-3">
@@ -68,6 +90,8 @@ export default function DetalleProducto({
               </ul>
             )}
           </div>
+          </div>
+          )}
         </div>
       )}
     </Modal>

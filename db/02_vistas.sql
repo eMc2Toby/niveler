@@ -131,7 +131,12 @@ select
   us.nombre_completo as usuario,
   m.observaciones,
   m.referencia_tabla,
-  m.referencia_id
+  m.referencia_id,
+  -- Los ids van al final para que `create or replace view` acepte el cambio
+  -- sobre una vista que ya existe. Sirven para filtrar el kardex por bodega:
+  -- con solo los nombres habria que comparar texto.
+  uo.id             as ubicacion_origen_id,
+  ud.id             as ubicacion_destino_id
 from movimientos_detalle md
 join movimientos m  on m.id = md.movimiento_id
 join productos p    on p.id = md.producto_id

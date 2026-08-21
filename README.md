@@ -49,7 +49,8 @@ npx supabase gen types typescript --project-id TU_ID > src/types/database.ts
 | Auth y layout | Login, roles, sidebar en PC y barra inferior en móvil |
 | Dashboard | Totales, stock por ciudad, alertas de reposición, tiempo real |
 | Productos | Catálogo con búsqueda, alta y edición, detalle con stock por ubicación |
-| Inventario | Stock por ubicación y conteo físico con ajuste |
+| Kardex | Historial de cada producto, con saldo acumulado por bodega y exportación |
+| Inventario | Stock por ubicación, conteo físico con ajuste y acceso al kardex |
 | Movimientos | Entradas, entregas a repartidor, devoluciones, mermas, historial y anulación |
 | Transferencias | Crear, enviar, recibir con faltantes, seguimiento |
 | Ventas | Registro de salida, pendiente o entregada, anulación con reverso |

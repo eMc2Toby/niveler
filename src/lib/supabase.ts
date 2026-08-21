@@ -173,11 +173,18 @@ export const api = {
   },
 
   async kardex(productoId: string) {
+    // El orden se pide explicito: la vista lo trae, pero PostgREST no
+    // garantiza conservarlo y el saldo acumulado depende de la secuencia.
     const { data, error } = await supabase
       .from('v_kardex')
       .select('*')
       .eq('producto_id', productoId)
-      .limit(200)
+      .order('fecha', { ascending: false })
+      // Desempate: dos movimientos del mismo segundo llegan en orden
+      // arbitrario, y el saldo acumulado depende de cuál va primero.
+      // El código de documento es secuencial, así que sirve de criterio.
+      .order('documento', { ascending: false })
+      .limit(300)
     if (error) throw error
     return data
   },

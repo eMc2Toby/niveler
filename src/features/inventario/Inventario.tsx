@@ -5,7 +5,7 @@ import { ClipboardCheck, Search } from 'lucide-react'
 import {
   Boton, Campo, Cargando, ErrorCarga, EstadoVacio, Etiqueta, Modal, Selector,
 } from '@/components/ui'
-import { Imagen } from '@/features/productos/Detalle'
+import DetalleProducto, { Imagen } from '@/features/productos/Detalle'
 import { useMisUbicaciones } from '@/hooks/useCatalogos'
 import { usePermisos } from '@/hooks/useAuth'
 import { api, suscribirInventario } from '@/lib/supabase'
@@ -20,6 +20,7 @@ export default function Inventario() {
   const [ubicacionId, setUbicacionId] = useState('')
   const [busqueda, setBusqueda] = useState('')
   const [contando, setContando] = useState<any | null>(null)
+  const [detalle, setDetalle] = useState<string | null>(null)
 
   const fisicas = propias.filter((u) => u.tipo === 'SUCURSAL' || u.tipo === 'DELIVERY')
 
@@ -99,22 +100,27 @@ export default function Inventario() {
             const bajo = Number(f.cantidad) <= Number(f.stock_minimo) && Number(f.stock_minimo) > 0
             return (
               <li key={f.id} className="flex items-center gap-3 px-4 py-3">
-                <Imagen ruta={f.imagen_url} nombre={f.producto} className="h-11 w-11" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-slate-900">{f.producto}</p>
-                  <p className="truncate text-xs text-slate-500">
-                    {f.sku} · {f.ubicacion}
-                  </p>
-                </div>
-
-                <div className="text-right">
-                  <p className="text-sm font-medium text-slate-900">{numero(f.cantidad)}</p>
-                  {Number(f.cantidad_reservada) > 0 && (
-                    <p className="text-xs text-amber-600">
-                      {numero(f.cantidad_reservada)} reservadas
+                <button
+                  onClick={() => setDetalle(f.producto_id)}
+                  className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                >
+                  <Imagen ruta={f.imagen_url} nombre={f.producto} className="h-11 w-11" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-slate-900">{f.producto}</p>
+                    <p className="truncate text-xs text-slate-500">
+                      {f.sku} · {f.ubicacion}
                     </p>
-                  )}
-                </div>
+                  </div>
+
+                  <div className="text-right">
+                    <p className="text-sm font-medium text-slate-900">{numero(f.cantidad)}</p>
+                    {Number(f.cantidad_reservada) > 0 && (
+                      <p className="text-xs text-amber-600">
+                        {numero(f.cantidad_reservada)} reservadas
+                      </p>
+                    )}
+                  </div>
+                </button>
 
                 {bajo && <Etiqueta tono="ambar">bajo</Etiqueta>}
 
@@ -137,6 +143,7 @@ export default function Inventario() {
       {contando && (
         <ModalConteo fila={contando} onCerrar={() => setContando(null)} />
       )}
+      <DetalleProducto productoId={detalle} onCerrar={() => setDetalle(null)} />
     </div>
   )
 }
