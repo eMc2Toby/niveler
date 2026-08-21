@@ -18,7 +18,7 @@
 | Gráficos | **Recharts** | Ligero y suficiente para el dashboard |
 | Formularios | **React Hook Form + Zod** | Validación idéntica en cliente y servidor |
 | Código | **Git + GitHub** | Historial y respaldo |
-| Despliegue | **Cloudflare Pages** | Cada push a `main` publica solo. Gratuito y permite uso comercial |
+| Despliegue | **Cloudflare Pages** | Cada push a `main` publica solo, y permite uso comercial |
 
 **Sin FastAPI.** Supabase ya entrega API REST, autenticación y permisos por fila. Agregar FastAPI encima significaría reescribir a mano lo que ya viene funcionando, más un servidor extra que mantener y pagar. Si algún día hace falta lógica que Postgres no cubra (facturación electrónica del SIN, integración con la web de ventas), se agrega un microservicio puntual sin tocar el resto.
 
@@ -161,22 +161,20 @@ Esto no es solo un menú distinto por rol: es RLS en la base. Un repartidor que 
 
 ## 6. Pasos para armarlo desde cero
 
-**Base de datos (30 minutos)**
+**Base de datos**
 
-1. Crear proyecto en [supabase.com](https://supabase.com) — región São Paulo, la más cercana a Bolivia.
-2. SQL Editor → ejecutar `01_schema.sql`, luego `02`, `03`, `04` y `05` en ese orden.
-3. Storage → crear bucket público `productos` y subir las imágenes.
+1. Crear el proyecto en [supabase.com](https://supabase.com) — región **South America (São Paulo)**, la más cercana a Bolivia.
+2. SQL Editor → ejecutar `db/01_schema.sql` a `db/06_migracion_productos.sql` en orden, y después `07_storage.sql` y `08_grants.sql`.
+3. Subir las imágenes al bucket con `node scripts/subir-imagenes.mjs`.
 4. Authentication → Users → crear el usuario admin y activarlo con el `update` que está al final de `05_seed.sql`.
+
+Los dos últimos archivos no son opcionales: sin los grants de `08`, un usuario logueado recibe `permission denied` aunque las políticas RLS lo autoricen, y sin `security_invoker` las vistas le muestran a cualquiera el stock de las siete ciudades.
 
 **Frontend**
 
 ```bash
-npm create vite@latest niveler -- --template react-ts
-cd niveler
 npm install
-# copiar package.json, vite.config.ts y src/lib/supabase.ts de este paquete
-npm install
-cp .env.example .env   # y completar con las claves del proyecto
+cp .env.example .env   # y completar con la URL y la anon key del proyecto
 npm run dev
 ```
 
@@ -191,10 +189,9 @@ npx supabase gen types typescript --project-id TU_ID > src/types/database.ts
 
 ```bash
 npm run build
-# subir a GitHub → conectar el repo en Vercel → agregar las dos variables VITE_
 ```
 
-Ahí ya se instala en el celular: al abrirla en Chrome aparece "Agregar a la pantalla de inicio".
+Subir a GitHub, conectar el repositorio en Cloudflare Pages y agregar ahí las dos variables `VITE_`. Cada push a `main` publica solo. Desde el celular, al abrirla en Chrome aparece "Agregar a la pantalla de inicio" y queda instalada como app.
 
 ---
 
@@ -214,22 +211,7 @@ Ahí ya se instala en el celular: al abrirla en Chrome aparece "Agregar a la pan
 
 ---
 
-## 8. Costos
-
-| Concepto | Costo |
-|---|---|
-| Supabase Free (500 MB base, 1 GB archivos) | **0 USD** |
-| Supabase Pro (cuando sea el registro único) | 25 USD/mes |
-| Cloudflare Pages | **0 USD** |
-| Dominio propio (opcional) | ~12 USD/año |
-
-Tu volumen —80 productos, 1.589 movimientos— usa el 0,14% de la base de datos. El Pro se justifica por los respaldos diarios, no por el tamaño.
-
-**Importante:** el plan gratuito de Vercel prohíbe el uso comercial, así que no sirve para Niveler. Cloudflare Pages sí lo permite. El detalle completo está en `ALMACENAMIENTO.md`.
-
----
-
-## 9. Tres cosas que no hay que hacer
+## 8. Tres cosas que no hay que hacer
 
 1. **No editar `inventario` desde el frontend.** Solo funciones RPC. Es la única garantía de que el stock nunca se descuadre.
 2. **No borrar movimientos.** Se anulan con `sp_anular_movimiento`, que revierte los saldos y deja el rastro. Un inventario sin historial no sirve para auditar.
@@ -237,7 +219,7 @@ Tu volumen —80 productos, 1.589 movimientos— usa el 0,14% de la base de dato
 
 ---
 
-## 10. Sobre el Excel actual
+## 9. Sobre el Excel actual
 
 No conviene importar los 1.589 movimientos históricos. Los saldos ya están validados y cuadrados: se cargan como una entrada inicial por ciudad con fecha de corte, y el archivo viejo queda archivado en Drive como respaldo. El histórico anterior se consulta ahí si alguna vez hace falta; el sistema nuevo arranca limpio y desde el primer día todo movimiento queda registrado con usuario, fecha y motivo.
 
@@ -246,6 +228,6 @@ Los dos productos pendientes de conteo físico (aspiradora en La Paz, foco venti
 
 ---
 
-## 11. Almacenamiento e infraestructura
+## 10. Almacenamiento e infraestructura
 
 Ver **`ALMACENAMIENTO.md`**: cuánto ocupan los datos frente a las imágenes, cómo comprimir a WebP, cuántos productos caben en el plan gratuito, qué servidor se usa y cómo configurar respaldos gratuitos.

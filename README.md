@@ -67,13 +67,13 @@ Las rutas de los módulos pendientes ya existen y muestran un aviso de
 
 ## Estado de la base de datos
 
-El proyecto vive en Supabase, región **São Paulo (sa-east-1)**, la más cercana
-a Bolivia. Los archivos de `db/` se ejecutan en orden: `01` a `06`, más
-`07_storage.sql` (bucket de imágenes) y `08_grants.sql` (permisos de tabla y
-`security_invoker` en las vistas, sin los cuales un usuario logueado recibe
-`permission denied` o, peor, ve datos de sucursales que no le tocan).
+El proyecto vive en Supabase (`InvetarioNiveler`), región **São Paulo
+(sa-east-1)**, la más cercana a Bolivia. Ya están ejecutados los ocho archivos
+de `db/`: 17 tablas, 10 vistas, 19 funciones, 33 políticas RLS, los 6 roles,
+las 7 sucursales, las 11 ubicaciones, 7 categorías y los 80 productos. El
+bucket `productos` está creado y es público.
 
-Pasos que dependen de elegir una contraseña, así que los haces tú:
+Falta lo que depende de elegir una contraseña, así que lo haces tú:
 
 1. **Authentication → Users → Add user** con tu correo y contraseña.
 2. Activarlo como administrador, en el SQL Editor:
@@ -86,10 +86,11 @@ update usuarios
  where email = 'tu@correo.com';
 ```
 
-3. Subir las imágenes al bucket, con tu service_role key en el entorno:
+3. Subir las 80 imágenes al bucket, con tu service_role key en el entorno
+   (PowerShell, desde la raíz del proyecto):
 
-```bash
-node scripts/subir-imagenes.mjs
+```powershell
+$env:SUPABASE_URL="https://oesfhlniqujblgtwidia.supabase.co"; $env:SUPABASE_SERVICE_ROLE_KEY="<tu service_role>"; node scripts/subir-imagenes.mjs
 ```
 
 ## El sistema no maneja dinero

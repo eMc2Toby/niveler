@@ -121,11 +121,11 @@ La app compilada es HTML, CSS y JavaScript estáticos: no necesita un servidor q
 
 2. <cite index="27-1">El plan gratuito no incluye backups automáticos</cite>. **Este es el motivo real para pasar a Pro**, no el espacio. Un inventario sin respaldo diario es una apuesta: si algo se corrompe, no hay a dónde volver. Mientras tanto se puede programar un respaldo semanal gratuito con GitHub Actions.
 
-El plan **Pro cuesta 25 USD/mes** e incluye 8 GB de base, 100 GB de archivos y backups diarios. Mi sugerencia: arrancar en Free durante el desarrollo y las primeras semanas de uso real, y pasar a Pro el día que el sistema sea el único registro del inventario. Sigue costando menos que los 20 USD/mes de AppSheet, y con muchísimo más margen.
+El plan Pro amplía el espacio y, sobre todo, agrega backups diarios. La recomendación: quedarse en Free durante el desarrollo y las primeras semanas de uso real, y subir de plan el día que el sistema sea el único registro del inventario.
 
 ### Cloudflare Pages — gratuito y sí permite uso comercial
 
-Aquí hay un detalle que casi nadie menciona y que te habría costado un dolor de cabeza: **Vercel no sirve para este proyecto en su plan gratuito**. <cite index="9-1">El plan Hobby de Vercel está restringido a uso personal y no comercial.</cite> Niveler es una empresa, así que estarías fuera de los términos desde el primer día y tendrías que pagar 20 USD/mes por asiento.
+Un detalle que casi nadie menciona y que habría dado problemas: **Vercel no sirve para este proyecto en su plan gratuito**. <cite index="9-1">El plan Hobby de Vercel está restringido a uso personal y no comercial.</cite> Niveler es una empresa, así que estaría fuera de los términos desde el primer día.
 
 <cite index="18-1">Cloudflare Pages, en cambio, ofrece ancho de banda ilimitado en su plan gratuito, sin tarjeta de crédito, sin vencimiento y con uso comercial permitido.</cite> <cite index="22-1">El plan gratuito permite 500 compilaciones al mes</cite>, más que suficiente: eso es 16 despliegues diarios.
 
@@ -137,18 +137,7 @@ Al crear el proyecto en Supabase, elegir **South America (São Paulo)**. Es la m
 
 ---
 
-## 6. Costo total
-
-| Fase | Supabase | Hosting | Dominio | Total |
-|---|---|---|---|---|
-| Desarrollo y prueba | Free · 0 USD | Cloudflare Free · 0 USD | — | **0 USD/mes** |
-| Producción | Pro · 25 USD | Cloudflare Free · 0 USD | ~12 USD/año | **≈ 26 USD/mes** |
-
-Comparado con los ~20 USD/mes de AppSheet, pagas unos 6 dólares más y a cambio tienes control total, sin límites de usuarios editores, con deliveries modelados de verdad y la posibilidad de conectar la web de ventas más adelante.
-
----
-
-## 7. Respaldo gratuito mientras estés en el plan Free
+## 6. Respaldo automático mientras estés en el plan Free
 
 Guardar esto como `.github/workflows/backup.yml` en el repositorio. Hace un volcado de la base cada domingo y lo archiva en GitHub durante 90 días:
 
