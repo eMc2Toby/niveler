@@ -1,0 +1,68 @@
+name: Respaldo diario de la base
+
+# El plan gratuito de Supabase no hace copias automáticas. Esto las hace:
+# un volcado completo cada madrugada, guardado como artefacto del repo.
+#
+# ANTES DE QUE FUNCIONE hay que crear un secreto en GitHub:
+#   Settings → Secrets and variables → Actions → New repository secret
+#   Nombre:  SUPABASE_DB_URL
+#   Valor:   la cadena de conexión de Supabase → Connect → Session pooler
+#
+# Importante: tiene que ser la del **Session pooler**, no la conexión
+# directa. Los servidores de GitHub solo hablan IPv4 y la conexión directa
+# del plan gratuito es IPv6: con esa, el respaldo falla sin explicación
+# clara. La del pooler se ve así:
+#   postgresql://postgres.oesfhlniqujblgtwidia:CONTRASEÑA@aws-0-sa-east-1.pooler.supabase.com:5432/postgres
+#
+# Ese secreto contiene la contraseña de la base. GitHub lo guarda cifrado y
+# no vuelve a mostrarlo; por eso el repositorio debe ser **privado**.
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # 06:00 UTC = 02:00 en Bolivia, todos los días
+  workflow_dispatch:       # y un botón para lanzarlo a mano
+
+jobs:
+  respaldo:
+    runs-on: ubuntu-latest
+
+    # pg_dump tiene que ser de la misma versión mayor que el servidor, o se
+    # niega a trabajar. Por eso corre dentro de la imagen oficial de Postgres
+    # en vez de usar el cliente que trae el runner, que suele ir atrasado.
+    container: postgres:17-alpine
+
+    steps:
+      - name: Volcar la base
+        env:
+          PGURL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -e
+          FECHA=$(date +%Y-%m-%d)
+          pg_dump "$PGURL" \
+            --schema=public \
+            --no-owner --no-privileges \
+            --file="niveler-$FECHA.sql"
+          gzip -9 "niveler-$FECHA.sql"
+          ls -lh niveler-*.sql.gz
+
+      - name: Guardar el archivo
+        uses: actions/upload-artifact@v4
+        with:
+          name: respaldo-${{ github.run_id }}
+          path: niveler-*.sql.gz
+          retention-days: 90
+
+# Para restaurar, desde tu PC:
+#   gunzip niveler-2026-08-21.sql.gz
+#   psql "LA_MISMA_CADENA_DE_CONEXION" -f niveler-2026-08-21.sql
+#
+# Dos advertencias que conviene saber de antemano:
+#
+# 1. GitHub desactiva los workflows programados cuando un repositorio pasa
+#    60 días sin actividad. Manda un correo avisando; basta con reactivarlo
+#    desde la pestaña Actions.
+#
+# 2. Esto respalda el esquema `public`: productos, movimientos, inventario,
+#    todo lo tuyo. NO respalda los usuarios de Auth ni las imágenes del
+#    bucket. Las imágenes ya las tienes en `imagenes_productos/` dentro del
+#    repositorio, y los usuarios se vuelven a crear registrándose.

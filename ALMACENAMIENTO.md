@@ -137,35 +137,49 @@ Al crear el proyecto en Supabase, elegir **South America (São Paulo)**. Es la m
 
 ---
 
-## 6. Respaldo automático mientras estés en el plan Free
+## 6. Cuánto espacio usas de verdad
 
-Guardar esto como `.github/workflows/backup.yml` en el repositorio. Hace un volcado de la base cada domingo y lo archiva en GitHub durante 90 días:
+Medido sobre el proyecto real, con los 80 productos cargados:
 
-```yaml
-name: Respaldo semanal de la base
-on:
-  schedule:
-    - cron: '0 6 * * 0'   # domingos 06:00 UTC (02:00 en Bolivia)
-  workflow_dispatch:       # también se puede lanzar a mano
+| Concepto | Uso | Límite del plan gratuito | Porcentaje |
+|---|---|---|---|
+| Base de datos completa | 13 MB | 500 MB | 2,6 % |
+| Solo tus tablas | 1,3 MB | — | — |
+| Imágenes en el bucket | 18 MB | 1 GB | 1,8 % |
 
-jobs:
-  respaldo:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Instalar cliente de Postgres
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
-      - name: Generar volcado
-        env:
-          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-        run: pg_dump "$DB_URL" --no-owner --clean > respaldo-$(date +%F).sql
-      - uses: actions/upload-artifact@v4
-        with:
-          name: respaldo-niveler
-          path: respaldo-*.sql
-          retention-days: 90
+El espacio no es un problema y no va a serlo pronto. Lo único que crece
+con el uso diario es la tabla `auditoria`, que guarda una copia del antes
+y el después de cada cambio. Cada movimiento deja unos 1,5 KB ahí: diez
+mil movimientos al año son unos 15 MB anuales. Con eso, la base tardaría
+más de veinte años en llenarse.
+
+Si algún día molestara, la solución **no** es exportar a otro lado —una
+copia no libera espacio, porque el original se queda igual— sino borrar
+la auditoría vieja:
+
+```sql
+delete from auditoria where fecha < now() - interval '12 months';
 ```
 
-La cadena de conexión se saca de Supabase → Project Settings → Database → Connection string, y se guarda en GitHub → Settings → Secrets → `SUPABASE_DB_URL`.
+Lo que sí puede sacarte del plan gratuito no es el tamaño: es la **pausa
+por inactividad**. Un proyecto sin consultas durante 7 días se suspende.
+Con siete ciudades registrando a diario, nunca se dispara.
 
-Como beneficio secundario, este workflow toca la base todas las semanas, así que también evita la pausa automática por inactividad.
+---
+
+## 7. Respaldo automático mientras estés en el plan Free
+
+El workflow ya está escrito en
+[`.github/workflows/respaldo.yml`](.github/workflows/respaldo.yml): hace un
+volcado cada madrugada y lo guarda 90 días. Solo falta crear el secreto
+`SUPABASE_DB_URL` en GitHub con la cadena del **Session pooler** — la
+conexión directa no sirve, porque los servidores de GitHub son IPv4 y esa
+es IPv6.
+
+Como beneficio secundario, el workflow toca la base todos los días, así que
+también evita la pausa automática por inactividad.
+
+Dos advertencias: GitHub desactiva los workflows programados tras 60 días sin
+actividad en el repositorio (avisa por correo), y el volcado cubre el esquema
+`public`, no los usuarios de Auth ni las imágenes del bucket. Las imágenes ya
+están versionadas en `imagenes_productos/`.
