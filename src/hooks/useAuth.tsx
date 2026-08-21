@@ -127,7 +127,9 @@ export function usePermisos() {
     verTodasLasSucursales: nivel >= 80,
     editarProductos: nivel >= 60,
     ajustarStock: nivel >= 60,
+    anularVentas: nivel >= 60,
     moverStock: nivel >= 40,
+    editarClientes: nivel >= 30,
     vender: nivel >= 10,
     esDelivery: perfil?.rol?.codigo === 'DELIVERY',
   }

@@ -8,6 +8,15 @@ import Layout from '@/components/layout/Layout'
 import Login from '@/features/auth/Login'
 import Dashboard from '@/features/dashboard/Dashboard'
 import ListaProductos from '@/features/productos/Lista'
+import Inventario from '@/features/inventario/Inventario'
+import Movimientos from '@/features/movimientos/Movimientos'
+import Transferencias from '@/features/transferencias/Transferencias'
+import Ventas from '@/features/ventas/Ventas'
+import Clientes from '@/features/clientes/Clientes'
+import Deliveries from '@/features/deliveries/Deliveries'
+import Sucursales from '@/features/sucursales/Sucursales'
+import Usuarios from '@/features/usuarios/Usuarios'
+import Reportes from '@/features/reportes/Reportes'
 
 const cliente = new QueryClient({
   defaultOptions: {
@@ -58,16 +67,6 @@ function RutaProtegida({ children, nivel = 10 }: { children: React.ReactNode; ni
   return <>{children}</>
 }
 
-/** Marcador temporal para las pantallas de las fases siguientes. */
-function EnConstruccion({ modulo }: { modulo: string }) {
-  return (
-    <div className="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center">
-      <p className="font-medium text-slate-900">{modulo}</p>
-      <p className="mt-1 text-sm text-slate-500">Este módulo se construye en la siguiente fase.</p>
-    </div>
-  )
-}
-
 export default function App() {
   return (
     <QueryClientProvider client={cliente}>
@@ -86,48 +85,39 @@ export default function App() {
             >
               <Route index element={<Dashboard />} />
 
-              {/* Fase 1 */}
               <Route path="productos" element={<ListaProductos />} />
+              <Route path="inventario" element={<Inventario />} />
+              <Route path="ventas" element={<Ventas />} />
 
-              {/* Fase 2 */}
-              <Route path="inventario" element={<EnConstruccion modulo="Inventario" />} />
               <Route
                 path="movimientos"
-                element={<RutaProtegida nivel={40}><EnConstruccion modulo="Movimientos" /></RutaProtegida>}
+                element={<RutaProtegida nivel={40}><Movimientos /></RutaProtegida>}
               />
-
-              {/* Fase 3 */}
               <Route
                 path="transferencias"
-                element={<RutaProtegida nivel={40}><EnConstruccion modulo="Transferencias" /></RutaProtegida>}
+                element={<RutaProtegida nivel={40}><Transferencias /></RutaProtegida>}
               />
-
-              {/* Fase 4 */}
-              <Route path="ventas" element={<EnConstruccion modulo="Ventas" />} />
-              <Route
-                path="clientes"
-                element={<RutaProtegida nivel={30}><EnConstruccion modulo="Clientes" /></RutaProtegida>}
-              />
-
-              {/* Fase 5 */}
               <Route
                 path="deliveries"
-                element={<RutaProtegida nivel={40}><EnConstruccion modulo="Deliveries" /></RutaProtegida>}
+                element={<RutaProtegida nivel={40}><Deliveries /></RutaProtegida>}
               />
-
-              {/* Fase 6 y 7 */}
+              <Route
+                path="clientes"
+                element={<RutaProtegida nivel={30}><Clientes /></RutaProtegida>}
+              />
               <Route
                 path="reportes"
-                element={<RutaProtegida nivel={60}><EnConstruccion modulo="Reportes" /></RutaProtegida>}
+                element={<RutaProtegida nivel={60}><Reportes /></RutaProtegida>}
               />
               <Route
                 path="sucursales"
-                element={<RutaProtegida nivel={100}><EnConstruccion modulo="Sucursales" /></RutaProtegida>}
+                element={<RutaProtegida nivel={100}><Sucursales /></RutaProtegida>}
               />
               <Route
                 path="usuarios"
-                element={<RutaProtegida nivel={100}><EnConstruccion modulo="Usuarios" /></RutaProtegida>}
+                element={<RutaProtegida nivel={100}><Usuarios /></RutaProtegida>}
               />
+
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />

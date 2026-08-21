@@ -4,8 +4,8 @@ Sistema de inventario multi-sucursal (7 ciudades + deliveries), como PWA instala
 React 18 + Vite + TypeScript + Tailwind sobre Supabase (PostgreSQL, Auth y RLS).
 
 El diseño completo del modelo de datos y las decisiones detrás está en
-[ESTRUCTURA.md](ESTRUCTURA.md); la parte de imágenes, respaldos y costos, en
-[ALMACENAMIENTO.md](ALMACENAMIENTO.md).
+[ESTRUCTURA.md](ESTRUCTURA.md); la parte de imágenes, respaldos e
+infraestructura, en [ALMACENAMIENTO.md](ALMACENAMIENTO.md).
 
 ## Arrancar en local
 
@@ -44,18 +44,23 @@ npx supabase gen types typescript --project-id TU_ID > src/types/database.ts
 
 ## Estado
 
-| Fase | Módulo | Estado |
-|---|---|---|
-| 1 | Auth, layout, productos | listo |
-| 2 | Inventario y movimientos | pendiente |
-| 3 | Transferencias | pendiente |
-| 4 | Ventas y clientes | pendiente |
-| 5 | Deliveries y rendición | pendiente |
-| 6 | Dashboard y reportes | dashboard base listo, reportes pendientes |
-| 7 | Usuarios, auditoría, exportar | pendiente |
+| Módulo | Qué hace |
+|---|---|
+| Auth y layout | Login, roles, sidebar en PC y barra inferior en móvil |
+| Dashboard | Totales, stock por ciudad, alertas de reposición, tiempo real |
+| Productos | Catálogo con búsqueda, alta y edición, detalle con stock por ubicación |
+| Inventario | Stock por ubicación y conteo físico con ajuste |
+| Movimientos | Entradas, entregas a repartidor, devoluciones, mermas, historial y anulación |
+| Transferencias | Crear, enviar, recibir con faltantes, seguimiento |
+| Ventas | Registro de salida, pendiente o entregada, anulación con reverso |
+| Clientes | Alta y edición |
+| Deliveries | Repartidores, stock en su poder y rendición |
+| Sucursales | Alta y edición de las ciudades |
+| Usuarios | Aprobar cuentas, asignar rol y sucursal |
+| Reportes | Más vendidos, sin movimiento, salidas por día, stock completo, todo exportable |
 
-Las rutas de los módulos pendientes ya existen y muestran un aviso de
-"en construcción", con el nivel de permiso que les corresponde.
+Falta la exportación a Excel nativa (hoy se baja CSV, que Excel abre directo)
+y el módulo de auditoría, que hoy solo se consulta desde la base.
 
 ## Dos reglas que no se rompen
 

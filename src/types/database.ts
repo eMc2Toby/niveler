@@ -18,8 +18,11 @@ type Fila = Record<string, any>
 
 type Tabla<Row extends Fila> = {
   Row: Row
-  Insert: Partial<Row>
-  Update: Partial<Row>
+  // Escrituras sin tipar a proposito: estos tipos son un puente hasta que
+  // exista el generado por Supabase, y ahi los defaults y las columnas
+  // generadas ya vienen resueltos. Row si esta tipado, que es lo que se lee.
+  Insert: Record<string, any>
+  Update: Record<string, any>
   Relationships: []
 }
 
