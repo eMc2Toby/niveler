@@ -422,6 +422,17 @@ export const api = {
     return data
   },
 
+  /** Cuentas con rol DELIVERY, para vincularlas con su ficha. */
+  async usuariosDelivery() {
+    const { data, error } = await supabase
+      .from('usuarios')
+      .select('id, nombre_completo, email, rol:roles!inner ( codigo )')
+      .eq('roles.codigo', 'DELIVERY')
+      .order('nombre_completo')
+    if (error) throw error
+    return data
+  },
+
   async guardarDelivery(id: string | null, datos: Record<string, any>) {
     const q = id
       ? supabase.from('deliveries').update(datos).eq('id', id)

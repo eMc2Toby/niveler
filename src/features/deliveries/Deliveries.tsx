@@ -187,7 +187,13 @@ function ModalRendicion({ delivery, onCerrar }: { delivery: any; onCerrar: () =>
 function FormularioDelivery({ delivery, onCerrar }: { delivery?: any; onCerrar: () => void }) {
   const qc = useQueryClient()
   const sucursales = useSucursales()
+  const cuentas = useQuery({
+    queryKey: ['usuarios-delivery'],
+    queryFn: api.usuariosDelivery,
+    staleTime: 60_000,
+  })
   const [f, setF] = useState({
+    usuario_id: delivery?.usuario_id ?? '',
     codigo: delivery?.codigo ?? '',
     nombre: delivery?.nombre ?? '',
     telefono: delivery?.telefono ?? '',
@@ -201,6 +207,7 @@ function FormularioDelivery({ delivery, onCerrar }: { delivery?: any; onCerrar: 
     mutationFn: () =>
       api.guardarDelivery(delivery?.id ?? null, {
         ...f,
+        usuario_id: f.usuario_id || null,
         telefono: f.telefono.trim() || null,
         ci: f.ci.trim() || null,
         vehiculo: f.vehiculo.trim() || null,
@@ -250,9 +257,27 @@ function FormularioDelivery({ delivery, onCerrar }: { delivery?: any; onCerrar: 
           Repartidor activo
         </label>
 
+        {/* Vincular la cuenta con la ficha es lo que le da al repartidor su
+            propia ubicación de stock. Sin esto entra a la app pero no puede
+            vender: no tiene stock propio del cual descontar. */}
+        <Selector
+          etiqueta="Cuenta de la app"
+          value={f.usuario_id}
+          onChange={set('usuario_id')}
+        >
+          <option value="">Sin cuenta (solo ficha)</option>
+          {cuentas.data?.map((u: any) => (
+            <option key={u.id} value={u.id}>
+              {u.nombre_completo} · {u.email}
+            </option>
+          ))}
+        </Selector>
+
         <p className="rounded-lg bg-slate-50 px-3.5 py-2.5 text-xs text-slate-600">
-          Para que además pueda entrar a la app, créale un usuario con rol Delivery
-          en Usuarios y vincúlalo desde la base.
+          La cuenta debe existir antes: la persona se registra desde el login y en
+          Usuarios se le da el rol Delivery. Al vincularla aquí recibe su propia
+          ubicación de stock; sin vincular entra a la app pero no puede vender,
+          porque no tiene de dónde descontar.
         </p>
 
         <div className="flex gap-3 pt-1">

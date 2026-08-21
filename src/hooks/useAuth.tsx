@@ -51,15 +51,21 @@ export function ProveedorAuth({ children }: { children: ReactNode }) {
       .eq('usuario_id', userId)
       .maybeSingle()
 
-    const { data: ubicacion } = await supabase
-      .from('ubicaciones')
-      .select('id')
-      .or(
-        delivery?.id
-          ? `delivery_id.eq.${delivery.id}`
-          : `sucursal_id.eq.${data.sucursal_id ?? '00000000-0000-0000-0000-000000000000'}`
-      )
-      .maybeSingle()
+    const esDelivery = (data as any).rol?.codigo === 'DELIVERY'
+
+    // Un repartidor sin ficha de delivery vinculada NO hereda la bodega de
+    // su sucursal: si lo hiciera podría vender del stock de la sucursal
+    // como si fuera suyo. Se queda sin ubicación hasta que un admin lo
+    // vincule desde Deliveries, y la app se lo dice al entrar.
+    const filtro = delivery?.id
+      ? `delivery_id.eq.${delivery.id}`
+      : esDelivery
+        ? null
+        : `sucursal_id.eq.${data.sucursal_id ?? '00000000-0000-0000-0000-000000000000'}`
+
+    const { data: ubicacion } = filtro
+      ? await supabase.from('ubicaciones').select('id').or(filtro).maybeSingle()
+      : { data: null }
 
     setPerfil({
       ...(data as any),
