@@ -14,6 +14,15 @@ name: Respaldo diario de la base
 # clara. La del pooler se ve así:
 #   postgresql://postgres.oesfhlniqujblgtwidia:CONTRASEÑA@aws-0-sa-east-1.pooler.supabase.com:5432/postgres
 #
+# Fíjate en el usuario: `postgres.oesfhlniqujblgtwidia`, con el identificador
+# del proyecto pegado con un punto. Si va solo `postgres`, el pooler no sabe
+# a qué proyecto conectarte y responde "password authentication failed"
+# aunque la contraseña esté bien. Es el error más común de este paso.
+#
+# Y si tu contraseña tiene @ / : ? # o %, hay que escribirla codificada
+# dentro de la URL, o el separador se confunde: @ es %40, / es %2F,
+# : es %3A, ? es %3F, # es %23 y % es %25.
+#
 # Ese secreto contiene la contraseña de la base. GitHub lo guarda cifrado y
 # no vuelve a mostrarlo; por eso el repositorio debe ser **privado**.
 
@@ -32,6 +41,52 @@ jobs:
     container: postgres:17-alpine
 
     steps:
+      # Antes de intentar el volcado, revisar la forma de la cadena. Sale
+      # mucho más barato un mensaje claro aquí que un "authentication
+      # failed" sin explicación. No se imprime la contraseña: solo el
+      # usuario y el host, que no son secretos.
+      - name: Revisar la cadena de conexión
+        env:
+          PGURL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$PGURL" ]; then
+            echo "No existe el secreto SUPABASE_DB_URL en el repositorio."
+            exit 1
+          fi
+
+          SIN_ESQUEMA=${PGURL#*//}
+          USUARIO=${SIN_ESQUEMA%%:*}
+          RESTO=${SIN_ESQUEMA#*@}
+          HOST=${RESTO%%:*}
+          echo "usuario: $USUARIO"
+          echo "host:    $HOST"
+
+          case "$HOST" in
+            *pooler.supabase.com) ;;
+            *)
+              echo ""
+              echo "AVISO: el host no es el del pooler. Los servidores de GitHub"
+              echo "son IPv4 y la conexión directa del plan gratuito es IPv6."
+              echo "Usa la cadena de Connect > Session pooler."
+              ;;
+          esac
+
+          case "$USUARIO" in
+            postgres.*) ;;
+            postgres)
+              echo ""
+              echo "ERROR: el usuario es 'postgres' a secas."
+              echo "Con el Session pooler tiene que ser postgres.<project-ref>,"
+              echo "es decir: postgres.oesfhlniqujblgtwidia"
+              exit 1
+              ;;
+            *)
+              echo ""
+              echo "ERROR: usuario inesperado. Se esperaba postgres.<project-ref>."
+              exit 1
+              ;;
+          esac
+
       - name: Volcar la base
         env:
           PGURL: ${{ secrets.SUPABASE_DB_URL }}
