@@ -1,8 +1,14 @@
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { toast } from 'sonner'
 import { Boton, Campo, Modal, Selector } from '@/components/ui'
 import { useCategorias, useGuardarProducto, useMarcas } from '@/hooks/useProductos'
+import { CampoImagen } from './CampoImagen'
+import { api } from '@/lib/supabase'
+import { extensionDe } from '@/lib/imagenes'
+import { mensajeError } from '@/lib/utils'
 
 // El mismo contrato que impone la base en 01_schema.sql: SKU único y
 // mínimo no negativo. Validar aquí evita un viaje al servidor para
@@ -33,6 +39,10 @@ export default function FormularioProducto({
   const marcas = useMarcas()
   const guardar = useGuardarProducto(producto?.id)
 
+  // `undefined` = no se tocó la foto · Blob = hay una nueva · null = se quitó
+  const [foto, setFoto] = useState<Blob | null | undefined>(undefined)
+  const [subiendo, setSubiendo] = useState(false)
+
   const {
     register, handleSubmit, formState: { errors },
   } = useForm<ValoresProducto>({
@@ -52,13 +62,38 @@ export default function FormularioProducto({
   })
 
   async function enviar(v: ValoresProducto) {
-    await guardar.mutateAsync({
+    const datos: any = {
       ...v,
       descripcion: v.descripcion?.trim() || null,
       // El select vacío entrega '' y la columna espera null o un uuid válido.
       categoria_id: v.categoria_id || null,
       marca_id: v.marca_id || null,
-    })
+    }
+
+    // La foto se sube antes de guardar la fila: si la subida falla, no
+    // queremos un producto apuntando a una imagen que no existe.
+    if (foto !== undefined) {
+      setSubiendo(true)
+      try {
+        datos.imagen_url = foto
+          ? await api.subirImagen(v.sku.trim(), foto, extensionDe(foto))
+          : null
+      } catch (e) {
+        setSubiendo(false)
+        toast.error(mensajeError(e, 'No se pudo subir la imagen.'))
+        return
+      }
+      setSubiendo(false)
+    }
+
+    await guardar.mutateAsync(datos)
+
+    // Recién con la fila guardada se borra la foto vieja: si se borrara
+    // antes y el guardado fallara, el producto se quedaría sin imagen.
+    if (foto !== undefined && producto?.imagen_url) {
+      await api.borrarImagen(producto.imagen_url)
+    }
+
     onCerrar()
   }
 
@@ -105,6 +140,12 @@ export default function FormularioProducto({
           </Selector>
         </div>
 
+        <CampoImagen
+          rutaActual={producto?.imagen_url ?? null}
+          nombre={producto?.nombre ?? ''}
+          onElegir={setFoto}
+        />
+
         <Campo
           etiqueta="Stock mínimo"
           type="number" step="1" inputMode="numeric"
@@ -135,8 +176,8 @@ export default function FormularioProducto({
           <Boton type="button" variante="secundario" className="flex-1" onClick={onCerrar}>
             Cancelar
           </Boton>
-          <Boton type="submit" className="flex-1" cargando={guardar.isPending}>
-            Guardar
+          <Boton type="submit" className="flex-1" cargando={guardar.isPending || subiendo}>
+            {subiendo ? 'Subiendo foto' : 'Guardar'}
           </Boton>
         </div>
       </form>

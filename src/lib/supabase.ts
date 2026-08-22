@@ -61,6 +61,36 @@ export type ProductoFormulario = {
 }
 
 export const api = {
+  // -------------------------------------------------------------- fotos
+
+  /**
+   * Sube la foto de un producto y devuelve la ruta que va en `imagen_url`.
+   *
+   * El nombre lleva la marca de tiempo a propósito. Si se reusara siempre
+   * `SKU.webp`, al reemplazar una foto la anterior seguiría viéndose:
+   * el service worker de la PWA cachea las imágenes 30 días, y el celular
+   * del repartidor no tiene forma de saber que cambió. Con un nombre nuevo
+   * la URL es otra y la foto aparece al instante.
+   */
+  async subirImagen(sku: string, blob: Blob, extension: string) {
+    const ruta = `${sku}-${Date.now()}.${extension}`
+    const { error } = await supabase.storage
+      .from('productos')
+      .upload(ruta, blob, { contentType: blob.type, cacheControl: '2592000' })
+    if (error) {
+      if (error.message.includes('row-level security'))
+        throw new Error('Tu rol no tiene permiso para subir imágenes.')
+      throw new Error('No se pudo subir la imagen. Revisa tu conexión.')
+    }
+    return ruta
+  },
+
+  /** Borra la foto anterior para no dejar archivos huérfanos en el bucket. */
+  async borrarImagen(ruta: string | null | undefined) {
+    if (!ruta || ruta.startsWith('http')) return
+    await supabase.storage.from('productos').remove([ruta])
+  },
+
   // ------------------------------------------------------------- catálogo
 
   async productos() {

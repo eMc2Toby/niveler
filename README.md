@@ -49,7 +49,7 @@ npx supabase gen types typescript --project-id TU_ID > src/types/database.ts
 |---|---|
 | Auth y layout | Login, roles, sidebar en PC y barra inferior en móvil |
 | Dashboard | Totales, stock por ciudad, alertas de reposición, tiempo real |
-| Productos | Catálogo con búsqueda, alta y edición, detalle con stock por ubicación |
+| Productos | Catálogo con búsqueda, alta y edición con foto, detalle con stock por ubicación |
 | Kardex | Historial de cada producto, con saldo acumulado por bodega y exportación |
 | Inventario | Stock por ubicación, conteo físico con ajuste y acceso al kardex |
 | Movimientos | Entradas, entregas a repartidor, devoluciones, mermas, historial y anulación |
@@ -114,6 +114,17 @@ las de un producto nuevo), hay dos caminos: con la `service_role` key en
 ```bash
 node scripts/subir-imagenes.mjs
 ```
+
+## Las fotos se comprimen solas
+
+Al agregar o cambiar la foto de un producto desde la app, el navegador la
+reduce a 1000 px y la convierte a WebP **antes** de subirla: una foto de
+celular de 5 MB se sube como unos 130 KB. No hay servidor de imágenes ni
+paso manual; funciona igual desde una PC que desde un teléfono, y el mismo
+botón deja elegir entre la cámara y la galería.
+
+El script `scripts/comprimir-imagenes.mjs` solo hace falta para cargas
+masivas desde la PC, como la migración inicial del catálogo.
 
 ## El sistema no maneja dinero
 
