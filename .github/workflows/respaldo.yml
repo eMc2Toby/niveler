@@ -101,7 +101,10 @@ jobs:
           ls -lh niveler-*.sql.gz
 
       - name: Guardar el archivo
-        uses: actions/upload-artifact@v4
+        # v5 es la primera que corre sobre Node 24. Con v4 el respaldo
+        # funcionaba igual, pero GitHub avisaba en cada corrida que la
+        # forzaba a un Node más nuevo que el que la acción declara.
+        uses: actions/upload-artifact@v5
         with:
           name: respaldo-${{ github.run_id }}
           path: niveler-*.sql.gz
