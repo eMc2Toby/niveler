@@ -41,6 +41,7 @@ npx supabase gen types typescript --project-id TU_ID > src/types/database.ts
 | `npm run build` | Verifica tipos y compila a `dist/` |
 | `npm run preview` | Sirve el build, útil para probar la PWA |
 | `node scripts/generar-iconos.mjs` | Regenera los íconos provisionales de `public/icons/` |
+| `node scripts/comprimir-imagenes.mjs` | Convierte `imagenes_productos/` a WebP para subir |
 
 ## Estado
 

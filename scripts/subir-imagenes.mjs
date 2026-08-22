@@ -26,7 +26,14 @@ import { extname, join } from 'node:path'
 const URL_BASE = process.env.SUPABASE_URL?.replace(/\/$/, '')
 const CLAVE = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY
 const BUCKET = 'productos'
-const CARPETA = 'imagenes_productos'
+
+// Con --webp sube las convertidas, que es lo que va a producción; sin la
+// bandera, los originales. Los dos juegos tienen el mismo nombre de
+// archivo salvo la extensión, así que `imagen_url` en la base decide cuál
+// se sirve.
+const CARPETA = process.argv.includes('--webp')
+  ? 'imagenes_productos_webp'
+  : 'imagenes_productos'
 
 if (!URL_BASE || !CLAVE) {
   console.error('Faltan SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY. Mira el encabezado de este archivo.')
@@ -36,7 +43,7 @@ if (!URL_BASE || !CLAVE) {
 const TIPOS = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' }
 
 const archivos = readdirSync(CARPETA).filter((f) => TIPOS[extname(f).toLowerCase()])
-console.log(`${archivos.length} imágenes por subir al bucket "${BUCKET}"`)
+console.log(`${archivos.length} imágenes de ${CARPETA}/ al bucket "${BUCKET}"`)
 
 let subidas = 0
 let fallidas = 0

@@ -139,13 +139,14 @@ Al crear el proyecto en Supabase, elegir **South America (São Paulo)**. Es la m
 
 ## 6. Cuánto espacio usas de verdad
 
-Medido sobre el proyecto real, con los 80 productos cargados:
+Medido sobre el proyecto real, con los 80 productos cargados y las fotos
+ya convertidas a WebP:
 
 | Concepto | Uso | Límite del plan gratuito | Porcentaje |
 |---|---|---|---|
 | Base de datos completa | 13 MB | 500 MB | 2,6 % |
 | Solo tus tablas | 1,3 MB | — | — |
-| Imágenes en el bucket | 18 MB | 1 GB | 1,8 % |
+| Imágenes en el bucket | **2,4 MB** | 1 GB | 0,2 % |
 
 El espacio no es un problema y no va a serlo pronto. Lo único que crece
 con el uso diario es la tabla `auditoria`, que guarda una copia del antes
