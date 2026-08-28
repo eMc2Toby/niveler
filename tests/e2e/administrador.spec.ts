@@ -16,6 +16,7 @@ test.describe('administrador autenticado', () => {
 
   test('puede abrir los módulos administrativos y la auditoría', async ({ page }) => {
     await expect(page.getByRole('link', { name: 'Usuarios' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Encomiendas' })).toBeVisible()
     await page.getByRole('link', { name: 'Auditoría' }).click()
     await expect(page).toHaveURL(/\/auditoria$/)
     await expect(page.getByRole('heading', { name: 'Auditoría' })).toBeVisible()
@@ -29,6 +30,10 @@ test.describe('administrador autenticado', () => {
 
     await page.goto('/transferencias')
     await expect(page.getByRole('heading', { name: 'Transferencias' })).toBeVisible()
+    await expect(page.getByText('No se pudieron cargar los datos')).toHaveCount(0)
+
+    await page.goto('/encomiendas')
+    await expect(page.getByRole('heading', { name: 'Encomiendas' })).toBeVisible()
     await expect(page.getByText('No se pudieron cargar los datos')).toHaveCount(0)
   })
 })

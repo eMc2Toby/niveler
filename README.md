@@ -21,17 +21,16 @@ falla: no hay base contra la cual hablar.
 ## Preparar la base de datos
 
 1. Crear el proyecto en [supabase.com](https://supabase.com), región São Paulo.
-2. SQL Editor → ejecutar en orden los archivos `db/01_...sql` a `db/12_...sql`.
+2. SQL Editor → ejecutar en orden los archivos `db/01_...sql` a `db/13_...sql`.
 3. Subir `imagenes_productos_webp/` al bucket público `productos` creado por
    `db/07_storage.sql`.
 4. Authentication → Users → crear el usuario admin y activarlo con el `update`
    del final de `db/05_seed.sql`.
 5. Copiar *Project URL* y *anon key* (Settings → API) al `.env`.
 
-En una base que ya tenía ejecutados los archivos 01–11, aplicar solamente
-`db/12_integridad_y_permisos.sql`. Esa migración cierra las escrituras directas
-de ventas y transferencias, vuelve atómicas sus reservas/anulaciones, restringe
-las RPC por sucursal y corrige los reportes de stock.
+En una base que ya tenía ejecutados los archivos 01–12, aplicar solamente
+`db/13_encomiendas.sql`. Esa migración agrega el seguimiento de bultos para
+clientes y entre deliveries, con estados, RLS, RPC transaccionales y auditoría.
 
 Las mismas migraciones están versionadas formalmente en `supabase/migrations/`.
 Para un proyecto nuevo se pueden aplicar con Supabase CLI; en una base existente
@@ -75,6 +74,7 @@ npm run types
 | Inventario | Stock por ubicación, conteo físico con ajuste y acceso al kardex |
 | Movimientos | Entradas, entregas a repartidor, devoluciones, mermas, historial y anulación |
 | Transferencias | Crear, enviar, recibir con faltantes, seguimiento |
+| Encomiendas | Bultos para clientes y entre deliveries: registro, despacho, entrega y anulación |
 | Ventas | Registro de salida, pendiente o entregada, anulación con reverso |
 | Clientes | Alta y edición |
 | Deliveries | Repartidores, stock en su poder y rendición |
@@ -116,12 +116,12 @@ propia app, en Usuarios → "Qué puede cada rol".
 ## Estado de la base de datos
 
 El proyecto vive en Supabase (`InvetarioNiveler`), región **São Paulo
-(sa-east-1)**, la más cercana a Bolivia. El repositorio contiene 12 scripts SQL:
-17 tablas, 10 vistas, políticas RLS, RPC de stock/ventas/transferencias, los 6
+(sa-east-1)**, la más cercana a Bolivia. El repositorio contiene 13 scripts SQL:
+18 tablas, 10 vistas, políticas RLS, RPC de stock/ventas/transferencias/encomiendas, los 6
 roles, las 7 sucursales, ubicaciones virtuales y el catálogo inicial. El bucket
 `productos` es público para lectura; las escrituras requieren nivel 60.
 
-Las 12 versiones de `supabase/migrations/` están registradas como aplicadas en el
+Las 13 versiones de `supabase/migrations/` están registradas como aplicadas en el
 historial remoto y `supabase migration list --linked` las muestra alineadas.
 
 ## Cloudflare

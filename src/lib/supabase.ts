@@ -51,6 +51,8 @@ export type ItemVenta = {
 }
 
 type TipoMovimiento = Database['public']['Enums']['tipo_movimiento']
+export type TipoEncomienda = Database['public']['Enums']['tipo_encomienda']
+export type EstadoEncomienda = Database['public']['Enums']['estado_encomienda']
 type SucursalInsert = Database['public']['Tables']['sucursales']['Insert']
 type ClienteInsert = Database['public']['Tables']['clientes']['Insert']
 type DeliveryInsert = Database['public']['Tables']['deliveries']['Insert']
@@ -64,6 +66,19 @@ export type ProductoFormulario = {
   unidad_medida: string
   stock_minimo: number
   activo: boolean
+}
+
+export type NuevaEncomienda = {
+  tipo: TipoEncomienda
+  deliveryOrigenId: string
+  descripcion: string
+  clienteId?: string
+  deliveryDestinoId?: string
+  cantidadBultos: number
+  pesoKg?: number
+  ciudadDestino?: string
+  direccionEntrega?: string
+  observaciones?: string
 }
 
 export const api = {
@@ -401,6 +416,80 @@ export const api = {
       .order('fecha_solicitud', { ascending: false })
       .limit(100)
     if (error) throw error
+    return data
+  },
+
+  // --------------------------------------------------------- encomiendas
+
+  /**
+   * Las encomiendas controlan custodia y entrega de bultos. No modifican
+   * inventario: una entrega de productos entre ubicaciones sigue usando
+   * el flujo transaccional de Transferencias.
+   */
+  async encomiendas(limite = 150) {
+    const { data, error } = await supabase
+      .from('encomiendas')
+      .select(`
+        id, codigo, tipo, estado, descripcion, cantidad_bultos, peso_kg,
+        sucursal_origen_id, usuario_crea_id,
+        ciudad_destino, direccion_entrega, observaciones, motivo_anulacion,
+        fecha_registro, fecha_despacho, fecha_entrega,
+        cliente:clientes ( id, nombre, telefono, ciudad, direccion ),
+        origen:deliveries!encomiendas_delivery_origen_id_fkey (
+          id, codigo, nombre, telefono, sucursal_base_id,
+          sucursal:sucursales ( nombre, ciudad )
+        ),
+        destino:deliveries!encomiendas_delivery_destino_id_fkey (
+          id, codigo, nombre, telefono, sucursal_base_id,
+          sucursal:sucursales ( nombre, ciudad )
+        ),
+        usuario_crea:usuarios!encomiendas_usuario_crea_id_fkey ( nombre_completo )
+      `)
+      .order('fecha_registro', { ascending: false })
+      .limit(limite)
+    if (error) throw error
+    return data
+  },
+
+  async crearEncomienda(args: NuevaEncomienda) {
+    const { data, error } = await supabase.rpc('rpc_crear_encomienda', {
+      p_tipo: args.tipo,
+      p_delivery_origen_id: args.deliveryOrigenId,
+      p_descripcion: args.descripcion,
+      p_cliente_id: args.clienteId || undefined,
+      p_delivery_destino_id: args.deliveryDestinoId || undefined,
+      p_cantidad_bultos: args.cantidadBultos,
+      p_peso_kg: args.pesoKg,
+      p_ciudad_destino: args.ciudadDestino || undefined,
+      p_direccion_entrega: args.direccionEntrega || undefined,
+      p_observaciones: args.observaciones || undefined,
+    })
+    if (error) throw new Error(traducir(error.message))
+    return data
+  },
+
+  async despacharEncomienda(id: string) {
+    const { data, error } = await supabase.rpc('rpc_despachar_encomienda', {
+      p_encomienda_id: id,
+    })
+    if (error) throw new Error(traducir(error.message))
+    return data
+  },
+
+  async entregarEncomienda(id: string) {
+    const { data, error } = await supabase.rpc('rpc_entregar_encomienda', {
+      p_encomienda_id: id,
+    })
+    if (error) throw new Error(traducir(error.message))
+    return data
+  },
+
+  async anularEncomienda(id: string, motivo: string) {
+    const { data, error } = await supabase.rpc('rpc_anular_encomienda', {
+      p_encomienda_id: id,
+      p_motivo: motivo,
+    })
+    if (error) throw new Error(traducir(error.message))
     return data
   },
 

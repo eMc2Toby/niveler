@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   graphql_public: {
     Tables: {
@@ -223,6 +223,190 @@ export type Database = {
             foreignKeyName: "deliveries_usuario_id_fkey"
             columns: ["usuario_id"]
             isOneToOne: true
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      encomiendas: {
+        Row: {
+          cantidad_bultos: number
+          ciudad_destino: string | null
+          cliente_id: string | null
+          codigo: string
+          created_at: string
+          delivery_destino_id: string | null
+          delivery_origen_id: string
+          descripcion: string
+          direccion_entrega: string | null
+          estado: Database["public"]["Enums"]["estado_encomienda"]
+          fecha_despacho: string | null
+          fecha_entrega: string | null
+          fecha_registro: string
+          id: string
+          motivo_anulacion: string | null
+          observaciones: string | null
+          peso_kg: number | null
+          sucursal_origen_id: string
+          tipo: Database["public"]["Enums"]["tipo_encomienda"]
+          updated_at: string
+          usuario_crea_id: string
+          usuario_despacha_id: string | null
+          usuario_entrega_id: string | null
+        }
+        Insert: {
+          cantidad_bultos?: number
+          ciudad_destino?: string | null
+          cliente_id?: string | null
+          codigo: string
+          created_at?: string
+          delivery_destino_id?: string | null
+          delivery_origen_id: string
+          descripcion: string
+          direccion_entrega?: string | null
+          estado?: Database["public"]["Enums"]["estado_encomienda"]
+          fecha_despacho?: string | null
+          fecha_entrega?: string | null
+          fecha_registro?: string
+          id?: string
+          motivo_anulacion?: string | null
+          observaciones?: string | null
+          peso_kg?: number | null
+          sucursal_origen_id: string
+          tipo: Database["public"]["Enums"]["tipo_encomienda"]
+          updated_at?: string
+          usuario_crea_id: string
+          usuario_despacha_id?: string | null
+          usuario_entrega_id?: string | null
+        }
+        Update: {
+          cantidad_bultos?: number
+          ciudad_destino?: string | null
+          cliente_id?: string | null
+          codigo?: string
+          created_at?: string
+          delivery_destino_id?: string | null
+          delivery_origen_id?: string
+          descripcion?: string
+          direccion_entrega?: string | null
+          estado?: Database["public"]["Enums"]["estado_encomienda"]
+          fecha_despacho?: string | null
+          fecha_entrega?: string | null
+          fecha_registro?: string
+          id?: string
+          motivo_anulacion?: string | null
+          observaciones?: string | null
+          peso_kg?: number | null
+          sucursal_origen_id?: string
+          tipo?: Database["public"]["Enums"]["tipo_encomienda"]
+          updated_at?: string
+          usuario_crea_id?: string
+          usuario_despacha_id?: string | null
+          usuario_entrega_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "encomiendas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "encomiendas_delivery_destino_id_fkey"
+            columns: ["delivery_destino_id"]
+            isOneToOne: false
+            referencedRelation: "deliveries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "encomiendas_delivery_destino_id_fkey"
+            columns: ["delivery_destino_id"]
+            isOneToOne: false
+            referencedRelation: "v_delivery_rendicion"
+            referencedColumns: ["delivery_id"]
+          },
+          {
+            foreignKeyName: "encomiendas_delivery_destino_id_fkey"
+            columns: ["delivery_destino_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock"
+            referencedColumns: ["delivery_id"]
+          },
+          {
+            foreignKeyName: "encomiendas_delivery_destino_id_fkey"
+            columns: ["delivery_destino_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_por_delivery"
+            referencedColumns: ["delivery_id"]
+          },
+          {
+            foreignKeyName: "encomiendas_delivery_origen_id_fkey"
+            columns: ["delivery_origen_id"]
+            isOneToOne: false
+            referencedRelation: "deliveries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "encomiendas_delivery_origen_id_fkey"
+            columns: ["delivery_origen_id"]
+            isOneToOne: false
+            referencedRelation: "v_delivery_rendicion"
+            referencedColumns: ["delivery_id"]
+          },
+          {
+            foreignKeyName: "encomiendas_delivery_origen_id_fkey"
+            columns: ["delivery_origen_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock"
+            referencedColumns: ["delivery_id"]
+          },
+          {
+            foreignKeyName: "encomiendas_delivery_origen_id_fkey"
+            columns: ["delivery_origen_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_por_delivery"
+            referencedColumns: ["delivery_id"]
+          },
+          {
+            foreignKeyName: "encomiendas_sucursal_origen_id_fkey"
+            columns: ["sucursal_origen_id"]
+            isOneToOne: false
+            referencedRelation: "sucursales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "encomiendas_sucursal_origen_id_fkey"
+            columns: ["sucursal_origen_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock"
+            referencedColumns: ["sucursal_id"]
+          },
+          {
+            foreignKeyName: "encomiendas_sucursal_origen_id_fkey"
+            columns: ["sucursal_origen_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_por_sucursal"
+            referencedColumns: ["sucursal_id"]
+          },
+          {
+            foreignKeyName: "encomiendas_usuario_crea_id_fkey"
+            columns: ["usuario_crea_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "encomiendas_usuario_despacha_id_fkey"
+            columns: ["usuario_despacha_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "encomiendas_usuario_entrega_id_fkey"
+            columns: ["usuario_entrega_id"]
+            isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
           },
@@ -1479,6 +1663,10 @@ export type Database = {
         }
         Returns: Json
       }
+      rpc_anular_encomienda: {
+        Args: { p_encomienda_id: string; p_motivo: string }
+        Returns: Json
+      }
       rpc_anular_transferencia: {
         Args: { p_motivo: string; p_transferencia_id: string }
         Returns: Json
@@ -1509,6 +1697,21 @@ export type Database = {
           usuario_nombre: string
         }[]
       }
+      rpc_crear_encomienda: {
+        Args: {
+          p_cantidad_bultos?: number
+          p_ciudad_destino?: string
+          p_cliente_id?: string
+          p_delivery_destino_id?: string
+          p_delivery_origen_id: string
+          p_descripcion: string
+          p_direccion_entrega?: string
+          p_observaciones?: string
+          p_peso_kg?: number
+          p_tipo: Database["public"]["Enums"]["tipo_encomienda"]
+        }
+        Returns: Json
+      }
       rpc_crear_transferencia: {
         Args: {
           p_destino_id: string
@@ -1516,6 +1719,14 @@ export type Database = {
           p_observaciones?: string
           p_origen_id: string
         }
+        Returns: Json
+      }
+      rpc_despachar_encomienda: {
+        Args: { p_encomienda_id: string }
+        Returns: Json
+      }
+      rpc_entregar_encomienda: {
+        Args: { p_encomienda_id: string }
         Returns: Json
       }
       rpc_entregar_venta: { Args: { p_venta_id: string }; Returns: Json }
@@ -1597,6 +1808,7 @@ export type Database = {
     }
     Enums: {
       accion_auditoria: "INSERT" | "UPDATE" | "DELETE"
+      estado_encomienda: "REGISTRADA" | "EN_TRANSITO" | "ENTREGADA" | "ANULADA"
       estado_movimiento: "BORRADOR" | "CONFIRMADO" | "ANULADO"
       estado_transferencia:
         | "BORRADOR"
@@ -1605,6 +1817,7 @@ export type Database = {
         | "RECIBIDA"
         | "ANULADA"
       estado_venta: "PENDIENTE" | "ENTREGADA" | "ANULADA"
+      tipo_encomienda: "CLIENTE" | "ENTRE_DELIVERIES"
       tipo_movimiento:
         | "ENTRADA"
         | "SALIDA"
@@ -1753,6 +1966,7 @@ export const Constants = {
   public: {
     Enums: {
       accion_auditoria: ["INSERT", "UPDATE", "DELETE"],
+      estado_encomienda: ["REGISTRADA", "EN_TRANSITO", "ENTREGADA", "ANULADA"],
       estado_movimiento: ["BORRADOR", "CONFIRMADO", "ANULADO"],
       estado_transferencia: [
         "BORRADOR",
@@ -1762,6 +1976,7 @@ export const Constants = {
         "ANULADA",
       ],
       estado_venta: ["PENDIENTE", "ENTREGADA", "ANULADA"],
+      tipo_encomienda: ["CLIENTE", "ENTRE_DELIVERIES"],
       tipo_movimiento: [
         "ENTRADA",
         "SALIDA",

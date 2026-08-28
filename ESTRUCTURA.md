@@ -138,8 +138,9 @@ niveler/
 | 6 | Deliveries | `deliveries` | `v_stock_por_delivery`, `v_delivery_rendicion` |
 | 7 | Ventas | `ventas`, `ventas_detalle`, `clientes` | `rpc_registrar_venta` |
 | 8 | Transferencias | `transferencias`, `transferencias_detalle` | `rpc_crear_` / `rpc_enviar_` / `rpc_recibir_transferencia` |
-| 9 | Usuarios y roles | `usuarios`, `roles` | CRUD + RLS |
-| 10 | Reportes | todas | `v_productos_mas_vendidos`, `v_productos_sin_movimiento`, `v_kardex`, `v_ventas_diarias` |
+| 9 | Encomiendas | `encomiendas` | `rpc_crear_` / `rpc_despachar_` / `rpc_entregar_` / `rpc_anular_encomienda` |
+| 10 | Usuarios y roles | `usuarios`, `roles` | CRUD + RLS |
+| 11 | Reportes | todas | `v_productos_mas_vendidos`, `v_productos_sin_movimiento`, `v_kardex`, `v_ventas_diarias` |
 | — | Auditoría | `auditoria` | automática por trigger |
 
 ---
@@ -154,6 +155,7 @@ Las cuentas no las crea un administrador: **cada persona se registra desde el lo
 | Registrar ventas | sí | sí | sí | sí | sí | sí |
 | Crear y editar clientes | sí | sí | sí | sí | sí | — |
 | Movimientos y transferencias | sí | sí | sí | sí | — | — |
+| Encomiendas propias o de su sucursal | sí | sí | sí | sí | sí | sí |
 | Crear y editar productos | sí | sí | sí | — | — | — |
 | Ajustar stock por conteo | sí | sí | sí | — | — | — |
 | Anular movimientos y ventas | sí | sí | sí | — | — | — |
@@ -217,8 +219,9 @@ Subir a GitHub, conectar el repositorio en Cloudflare Pages y agregar ahí las d
 | 3 | Transferencias | Las 7 ciudades conectadas |
 | 4 | Ventas + clientes | Se registra lo que sale |
 | 5 | Deliveries + rendición | El problema de los repartidores resuelto |
-| 6 | Dashboard + reportes | El gerente ve todo desde el celular |
-| 7 | Usuarios, auditoría, exportar Excel | Sistema cerrado |
+| 6 | Encomiendas | Se rastrean bultos para clientes y entre deliveries |
+| 7 | Dashboard + reportes | El gerente ve todo desde el celular |
+| 8 | Usuarios, auditoría, exportar Excel | Sistema cerrado |
 
 **Sugerencia fuerte:** al terminar la fase 2, poner una sola sucursal a trabajar en paralelo con el Excel durante dos semanas. Los errores de modelado aparecen ahí, cuando corregirlos cuesta horas y no meses.
 

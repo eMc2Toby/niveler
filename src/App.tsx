@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Loader2, ShieldAlert } from 'lucide-react'
@@ -20,6 +21,8 @@ import Sucursales from '@/features/sucursales/Sucursales'
 import Usuarios from '@/features/usuarios/Usuarios'
 import Reportes from '@/features/reportes/Reportes'
 import Auditoria from '@/features/auditoria/Auditoria'
+
+const Encomiendas = lazy(() => import('@/features/encomiendas/Encomiendas'))
 
 const cliente = new QueryClient({
   defaultOptions: {
@@ -113,6 +116,14 @@ export default function App() {
               <Route path="productos" element={<ListaProductos />} />
               <Route path="inventario" element={<Inventario />} />
               <Route path="ventas" element={<Ventas />} />
+              <Route
+                path="encomiendas"
+                element={
+                  <Suspense fallback={<div className="grid place-items-center py-20"><Loader2 className="h-6 w-6 animate-spin text-slate-400" /></div>}>
+                    <Encomiendas />
+                  </Suspense>
+                }
+              />
 
               <Route
                 path="movimientos"
