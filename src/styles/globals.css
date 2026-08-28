@@ -3,20 +3,51 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    color-scheme: light;
+    font-synthesis: none;
+  }
+
   html {
     -webkit-tap-highlight-color: transparent;
+    min-width: 320px;
+    background: #f3f6f4;
   }
+
   body {
-    @apply antialiased text-slate-900;
+    @apply min-h-dvh antialiased text-slate-900;
+    background:
+      radial-gradient(circle at 12% -8%, rgb(16 185 129 / 0.08), transparent 28rem),
+      #f3f6f4;
     /* Evita el zoom involuntario en iOS al tocar un input */
     -webkit-text-size-adjust: 100%;
   }
+
+  ::selection {
+    @apply bg-emerald-200 text-emerald-950;
+  }
+
   /* Los inputs por debajo de 16px hacen que iOS haga zoom al enfocarlos */
   input, select, textarea {
     font-size: 16px;
   }
+
   :focus-visible {
-    @apply outline-none ring-2 ring-emerald-500 ring-offset-2;
+    @apply outline-none ring-2 ring-emerald-500/80 ring-offset-2;
+  }
+
+  button, a {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+@layer components {
+  .nv-panel {
+    @apply rounded-2xl border border-slate-200/80 bg-white shadow-[0_1px_2px_rgb(15_23_42/0.03),0_10px_30px_rgb(15_23_42/0.04)];
+  }
+
+  .nv-kicker {
+    @apply text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700;
   }
 }
 
