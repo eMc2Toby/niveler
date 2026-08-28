@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
+import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 
 export type Perfil = {
@@ -26,7 +27,13 @@ type ContextoAuth = {
 
 const Auth = createContext<ContextoAuth | null>(null)
 
+/** Elimina la cache REST creada por versiones anteriores de la PWA. */
+async function limpiarCacheDatos() {
+  if ('caches' in window) await window.caches.delete('datos-api')
+}
+
 export function ProveedorAuth({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient()
   const [sesion, setSesion] = useState<Session | null>(null)
   const [perfil, setPerfil] = useState<Perfil | null>(null)
   const [cargando, setCargando] = useState(true)
@@ -75,33 +82,49 @@ export function ProveedorAuth({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
+    // Las respuestas REST autenticadas no deben sobrevivir a un cambio de
+    // usuario. La version actual ya no las guarda, pero limpiamos la cache
+    // que pudo dejar instalada una version anterior del service worker.
+    void limpiarCacheDatos()
+
     supabase.auth.getSession().then(async ({ data }) => {
       setSesion(data.session)
       if (data.session) await cargarPerfil(data.session.user.id)
       setCargando(false)
     })
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_evento, nuevaSesion) => {
+    const { data: sub } = supabase.auth.onAuthStateChange(async (evento, nuevaSesion) => {
       setSesion(nuevaSesion)
       if (nuevaSesion) await cargarPerfil(nuevaSesion.user.id)
-      else setPerfil(null)
+      else {
+        setPerfil(null)
+        if (evento === 'SIGNED_OUT') {
+          queryClient.clear()
+          void limpiarCacheDatos()
+        }
+      }
     })
 
     return () => sub.subscription.unsubscribe()
-  }, [])
+  }, [queryClient])
 
   const valor: ContextoAuth = {
     sesion,
     perfil,
     cargando,
     async entrar(email, password) {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      setCargando(true)
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) {
+        setCargando(false)
         // Traducimos los mensajes de Supabase, que vienen en inglés.
         if (error.message.includes('Invalid login')) throw new Error('Correo o contraseña incorrectos.')
         if (error.message.includes('Email not confirmed')) throw new Error('Falta confirmar el correo. Revisa tu bandeja de entrada.')
         throw new Error('No se pudo iniciar sesión. Revisa tu conexión e inténtalo de nuevo.')
       }
+      setSesion(data.session)
+      if (data.user) await cargarPerfil(data.user.id)
+      setCargando(false)
     },
     /**
      * Alta de cuenta. La hace la propia persona desde el login, no un
@@ -135,6 +158,8 @@ export function ProveedorAuth({ children }: { children: ReactNode }) {
     async salir() {
       await supabase.auth.signOut()
       setPerfil(null)
+      queryClient.clear()
+      await limpiarCacheDatos()
     },
     async recuperar(email) {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -163,6 +188,7 @@ export function usePermisos() {
     verTodasLasSucursales: nivel >= 80,
     editarProductos: nivel >= 60,
     ajustarStock: nivel >= 60,
+    anularMovimientos: nivel >= 60,
     anularVentas: nivel >= 60,
     moverStock: nivel >= 40,
     editarClientes: nivel >= 30,

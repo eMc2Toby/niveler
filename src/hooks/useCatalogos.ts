@@ -42,17 +42,39 @@ export function useMisUbicaciones() {
   const { perfil } = useAuth()
   const { verTodasLasSucursales, esDelivery } = usePermisos()
   const ubicaciones = useUbicaciones()
+  const deliveries = useDeliveries()
 
   const propias = useMemo(() => {
     const todas = (ubicaciones.data ?? []) as Ubicacion[]
     if (verTodasLasSucursales) return todas
     if (esDelivery) return todas.filter((u) => u.id === perfil?.ubicacion_id)
-    return todas.filter(
-      (u) => u.tipo !== 'SUCURSAL' || u.sucursal_id === perfil?.sucursal_id,
-    )
-  }, [ubicaciones.data, verTodasLasSucursales, esDelivery, perfil])
 
-  return { ...ubicaciones, propias }
+    const deliveriesDeSucursal = new Set(
+      (deliveries.data ?? [])
+        .filter((d: any) => d.sucursal_base_id === perfil?.sucursal_id)
+        .map((d: any) => d.id),
+    )
+
+    return todas.filter(
+      (u) =>
+        !['SUCURSAL', 'DELIVERY'].includes(u.tipo)
+        || (u.tipo === 'SUCURSAL' && u.sucursal_id === perfil?.sucursal_id)
+        || (u.tipo === 'DELIVERY' && !!u.delivery_id && deliveriesDeSucursal.has(u.delivery_id)),
+    )
+  }, [
+    ubicaciones.data,
+    deliveries.data,
+    verTodasLasSucursales,
+    esDelivery,
+    perfil?.ubicacion_id,
+    perfil?.sucursal_id,
+  ])
+
+  return {
+    ...ubicaciones,
+    isLoading: ubicaciones.isLoading || deliveries.isLoading,
+    propias,
+  }
 }
 
 /** Las virtuales (proveedor, merma, cliente, tránsito) por tipo. */

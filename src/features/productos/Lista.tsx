@@ -7,6 +7,7 @@ import { numero } from '@/lib/formato'
 import { normalizar } from '@/lib/utils'
 import FormularioProducto from './Formulario'
 import DetalleProducto, { Imagen } from './Detalle'
+import ImportarExcel from './ImportarExcel'
 
 export default function ListaProductos() {
   const { editarProductos } = usePermisos()
@@ -35,15 +36,16 @@ export default function ListaProductos() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="hidden lg:block">
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Productos</h1>
           <p className="text-sm text-slate-500">
             {numero(filtrados.length)} de {numero(productos.data?.length ?? 0)}
           </p>
         </div>
+        {editarProductos && <ImportarExcel productos={productos.data ?? []} />}
         {editarProductos && (
-          <Boton className="ml-auto" onClick={() => setCreando(true)}>
+          <Boton onClick={() => setCreando(true)}>
             <Plus className="h-4 w-4" />
             Nuevo
           </Boton>

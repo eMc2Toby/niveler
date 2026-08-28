@@ -19,6 +19,7 @@ import Deliveries from '@/features/deliveries/Deliveries'
 import Sucursales from '@/features/sucursales/Sucursales'
 import Usuarios from '@/features/usuarios/Usuarios'
 import Reportes from '@/features/reportes/Reportes'
+import Auditoria from '@/features/auditoria/Auditoria'
 
 const cliente = new QueryClient({
   defaultOptions: {
@@ -45,8 +46,28 @@ function RutaProtegida({ children, nivel = 10 }: { children: React.ReactNode; ni
 
   if (!sesion) return <Navigate to="/entrar" replace />
 
+  // Evita un bucle de redireccion a "/" cuando hay sesion pero el perfil
+  // no pudo cargarse (RLS incompleta, migracion pendiente o corte de red).
+  if (!perfil) {
+    return (
+      <div className="grid min-h-dvh place-items-center bg-slate-50 px-6">
+        <div className="max-w-sm text-center">
+          <ShieldAlert className="mx-auto mb-4 h-10 w-10 text-red-500" />
+          <h2 className="mb-2 text-lg font-semibold text-slate-900">No se pudo cargar tu perfil</h2>
+          <p className="mb-6 text-sm text-slate-600">
+            Revisa la conexión e intenta entrar otra vez. Si continúa, falta aplicar una migración
+            o vincular tu cuenta con el perfil de usuarios.
+          </p>
+          <button onClick={salir} className="text-sm font-medium text-emerald-600 hover:underline">
+            Volver a entrar
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   // Los usuarios nuevos nacen inactivos hasta que un admin los aprueba.
-  if (perfil && !perfil.activo) {
+  if (!perfil.activo) {
     return (
       <div className="grid min-h-dvh place-items-center bg-slate-50 px-6">
         <div className="max-w-sm text-center">
@@ -112,6 +133,10 @@ export default function App() {
               <Route
                 path="reportes"
                 element={<RutaProtegida nivel={60}><Reportes /></RutaProtegida>}
+              />
+              <Route
+                path="auditoria"
+                element={<RutaProtegida nivel={80}><Auditoria /></RutaProtegida>}
               />
               <Route
                 path="sucursales"

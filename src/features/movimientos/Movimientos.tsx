@@ -27,6 +27,8 @@ const TIPOS = [
   { valor: 'DEVOLUCION',             texto: 'Devolución de cliente',  origen: 'CLIENTE',   destino: 'SUCURSAL' },
 ] as const
 
+type TipoManual = (typeof TIPOS)[number]['valor']
+
 const COLOR: Record<string, 'verde' | 'ambar' | 'rojo' | 'neutro'> = {
   ENTRADA: 'verde',
   DEVOLUCION: 'verde',
@@ -36,7 +38,7 @@ const COLOR: Record<string, 'verde' | 'ambar' | 'rojo' | 'neutro'> = {
 }
 
 export default function Movimientos() {
-  const { moverStock } = usePermisos()
+  const { moverStock, anularMovimientos } = usePermisos()
   const movimientos = useQuery({ queryKey: ['movimientos'], queryFn: () => api.movimientos() })
   const [registrando, setRegistrando] = useState(false)
   const [anulando, setAnulando] = useState<any | null>(null)
@@ -110,7 +112,7 @@ export default function Movimientos() {
                   )}
                 </div>
 
-                {moverStock && m.estado === 'CONFIRMADO' && (
+                {anularMovimientos && m.estado === 'CONFIRMADO' && !m.referencia_tabla && (
                   <Boton variante="fantasma" className="px-3" onClick={() => setAnulando(m)}>
                     Anular
                   </Boton>
@@ -133,7 +135,7 @@ function FormularioMovimiento({ onCerrar }: { onCerrar: () => void }) {
   const todas = (useUbicaciones().data ?? []) as Ubicacion[]
   const productos = useProductos()
 
-  const [tipo, setTipo] = useState<string>(TIPOS[0].valor)
+  const [tipo, setTipo] = useState<TipoManual>(TIPOS[0].valor)
   const [origen, setOrigen] = useState('')
   const [destino, setDestino] = useState('')
   const [items, setItems] = useState<Item[]>([])
@@ -174,6 +176,8 @@ function FormularioMovimiento({ onCerrar }: { onCerrar: () => void }) {
     onSuccess: (r: any) => {
       qc.invalidateQueries({ queryKey: ['movimientos'] })
       qc.invalidateQueries({ queryKey: ['stock'] })
+      qc.invalidateQueries({ queryKey: ['stock-ubicacion'] })
+      qc.invalidateQueries({ queryKey: ['producto-stock'] })
       qc.invalidateQueries({ queryKey: ['dashboard'] })
       toast.success(`Movimiento ${r?.codigo ?? ''} registrado`)
       onCerrar()
@@ -187,7 +191,7 @@ function FormularioMovimiento({ onCerrar }: { onCerrar: () => void }) {
   return (
     <Modal abierto titulo="Registrar movimiento" onCerrar={onCerrar} ancho="max-w-2xl">
       <div className="space-y-4">
-        <Selector etiqueta="Tipo" value={tipo} onChange={(e) => setTipo(e.target.value)}>
+        <Selector etiqueta="Tipo" value={tipo} onChange={(e) => setTipo(e.target.value as TipoManual)}>
           {TIPOS.map((t) => (
             <option key={t.valor} value={t.valor}>{t.texto}</option>
           ))}
@@ -261,6 +265,8 @@ function ModalAnular({ movimiento, onCerrar }: { movimiento: any; onCerrar: () =
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['movimientos'] })
       qc.invalidateQueries({ queryKey: ['stock'] })
+      qc.invalidateQueries({ queryKey: ['stock-ubicacion'] })
+      qc.invalidateQueries({ queryKey: ['producto-stock'] })
       qc.invalidateQueries({ queryKey: ['dashboard'] })
       toast.success('Movimiento anulado, saldos revertidos')
       onCerrar()

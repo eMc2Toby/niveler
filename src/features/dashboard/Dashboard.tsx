@@ -1,8 +1,5 @@
 import { useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid,
-} from 'recharts'
 import { Boxes, Truck, TriangleAlert, ArrowRightLeft, Loader2 } from 'lucide-react'
 import { api, suscribirInventario } from '@/lib/supabase'
 import { usePermisos, useAuth } from '@/hooks/useAuth'
@@ -81,7 +78,7 @@ export default function Dashboard() {
           etiqueta="Bajo el mínimo"
           valor={numero(t.productos_bajo_stock)}
           nota="productos"
-          alerta={t.productos_bajo_stock > 0}
+          alerta={(t.productos_bajo_stock ?? 0) > 0}
         />
         <Tarjeta
           Icono={ArrowRightLeft}
@@ -107,27 +104,7 @@ export default function Dashboard() {
       {verTodasLasSucursales && sucursales.data && (
         <div className="rounded-xl border border-slate-200 bg-white p-5">
           <h2 className="mb-4 font-medium text-slate-900">Stock por ciudad</h2>
-          <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={sucursales.data} margin={{ left: -20, right: 8 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-              <XAxis
-                dataKey="ciudad"
-                tick={{ fontSize: 11, fill: '#64748b' }}
-                axisLine={false}
-                tickLine={false}
-                interval={0}
-                angle={-25}
-                textAnchor="end"
-                height={50}
-              />
-              <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-              <Tooltip
-                formatter={(v: number) => [numero(v), 'unidades']}
-                contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13 }}
-              />
-              <Bar dataKey="unidades" fill="#10b981" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <GraficoSucursales datos={sucursales.data as any[]} />
         </div>
       )}
 
@@ -167,6 +144,30 @@ export default function Dashboard() {
           </ul>
         )}
       </div>
+    </div>
+  )
+}
+
+function GraficoSucursales({ datos }: { datos: any[] }) {
+  const maximo = Math.max(1, ...datos.map((dato) => Number(dato.unidades) || 0))
+  return (
+    <div className="space-y-3" role="img" aria-label="Gráfico de stock por ciudad">
+      {datos.map((dato) => {
+        const cantidad = Number(dato.unidades) || 0
+        return (
+          <div key={dato.sucursal_id ?? dato.ciudad} className="grid grid-cols-[6rem_1fr_4rem] items-center gap-3 text-sm">
+            <span className="truncate text-slate-600" title={dato.ciudad}>{dato.ciudad}</span>
+            <div className="h-5 overflow-hidden rounded bg-slate-100">
+              <div
+                className="h-full rounded bg-emerald-500"
+                style={{ width: `${Math.max(cantidad > 0 ? 2 : 0, (cantidad / maximo) * 100)}%` }}
+                title={`${dato.ciudad}: ${numero(cantidad)} unidades`}
+              />
+            </div>
+            <span className="text-right font-medium text-slate-700">{numero(cantidad)}</span>
+          </div>
+        )
+      })}
     </div>
   )
 }

@@ -163,7 +163,10 @@ function ModalConteo({ fila, onCerrar }: { fila: any; onCerrar: () => void }) {
       api.ajustarStock(fila.producto_id, fila.ubicacion_id, Number(contada), motivo),
     onSuccess: (r: any) => {
       qc.invalidateQueries({ queryKey: ['stock'] })
+      qc.invalidateQueries({ queryKey: ['stock-ubicacion'] })
+      qc.invalidateQueries({ queryKey: ['producto-stock'] })
       qc.invalidateQueries({ queryKey: ['movimientos'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
       toast.success(
         r?.ajuste
           ? `Ajustado: ${r.diferencia > 0 ? '+' : ''}${numero(r.diferencia)}`
@@ -175,6 +178,7 @@ function ModalConteo({ fila, onCerrar }: { fila: any; onCerrar: () => void }) {
   })
 
   const diferencia = Number(contada || 0) - Number(fila.cantidad)
+  const conteoValido = contada !== '' && Number.isFinite(Number(contada)) && Number(contada) >= 0
 
   return (
     <Modal abierto titulo="Conteo físico" onCerrar={onCerrar}>
@@ -199,6 +203,7 @@ function ModalConteo({ fila, onCerrar }: { fila: any; onCerrar: () => void }) {
             etiqueta="Contado"
             type="number"
             inputMode="numeric"
+            min="0"
             value={contada}
             onChange={(e) => setContada(e.target.value)}
           />
@@ -231,7 +236,7 @@ function ModalConteo({ fila, onCerrar }: { fila: any; onCerrar: () => void }) {
           <Boton
             className="flex-1"
             cargando={ajustar.isPending}
-            disabled={!motivo.trim() || contada === ''}
+            disabled={!motivo.trim() || !conteoValido}
             onClick={() => ajustar.mutate()}
           >
             Registrar conteo

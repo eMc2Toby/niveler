@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowDownLeft, ArrowUpRight, Download } from 'lucide-react'
+import { toast } from 'sonner'
 import { Boton, Cargando, ErrorCarga, Selector } from '@/components/ui'
 import { api } from '@/lib/supabase'
-import { descargarCSV } from '@/lib/exportar'
+import { descargarExcel } from '@/lib/excel'
 import { fechaHora, numero } from '@/lib/formato'
 import { useMisUbicaciones } from '@/hooks/useCatalogos'
 
@@ -23,6 +24,7 @@ import { useMisUbicaciones } from '@/hooks/useCatalogos'
 export default function Kardex({ productoId, sku }: { productoId: string; sku?: string }) {
   const { propias } = useMisUbicaciones()
   const [ubicacionId, setUbicacionId] = useState('')
+  const [exportando, setExportando] = useState(false)
 
   const kardex = useQuery({
     queryKey: ['kardex', productoId],
@@ -65,10 +67,10 @@ export default function Kardex({ productoId, sku }: { productoId: string; sku?: 
   if (kardex.isLoading) return <Cargando className="py-10" />
   if (kardex.isError) return <ErrorCarga onReintentar={() => kardex.refetch()} />
 
-  const exportar = () =>
-    descargarCSV(
-      `kardex-${sku ?? productoId}`,
-      filas.map((m: any) => ({
+  const exportar = async () => {
+    setExportando(true)
+    try {
+      await descargarExcel(`kardex-${sku ?? productoId}`, filas.map((m: any) => ({
         fecha: fechaHora(m.fecha),
         documento: m.documento,
         tipo: m.tipo,
@@ -78,8 +80,13 @@ export default function Kardex({ productoId, sku }: { productoId: string; sku?: 
         ...(ubicacionId ? { entrada_salida: m.signo > 0 ? 'entrada' : 'salida', saldo: m.saldo } : {}),
         usuario: m.usuario ?? '',
         observaciones: m.observaciones ?? '',
-      })),
-    )
+      })), 'Kardex')
+    } catch {
+      toast.error('No se pudo generar el archivo de Excel.')
+    } finally {
+      setExportando(false)
+    }
+  }
 
   return (
     <div className="space-y-3">
@@ -95,7 +102,12 @@ export default function Kardex({ productoId, sku }: { productoId: string; sku?: 
             <option key={u.id} value={u.id}>{u.nombre}</option>
           ))}
         </Selector>
-        <Boton variante="secundario" disabled={!filas.length} onClick={exportar}>
+        <Boton
+          variante="secundario"
+          disabled={!filas.length}
+          cargando={exportando}
+          onClick={() => void exportar()}
+        >
           <Download className="h-4 w-4" />
           Excel
         </Boton>

@@ -1,22 +1,22 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
-import path from 'path'
+import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
   resolve: {
-    alias: { '@': path.resolve(__dirname, './src') },
+    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
 
   build: {
     rollupOptions: {
       output: {
-        // Separar las librerías pesadas del código propio: en Bolivia, con
-        // datos móviles, conviene que una corrección de la app no obligue a
-        // volver a bajar recharts entero.
-        manualChunks: {
-          graficos: ['recharts'],
-          datos: ['@supabase/supabase-js', '@tanstack/react-query'],
+        // Separar la capa de datos del código propio: en Bolivia, con datos
+        // móviles, una corrección visual no obliga a bajar Supabase otra vez.
+        manualChunks(id) {
+          if (id.includes('@supabase/supabase-js') || id.includes('@tanstack/react-query')) {
+            return 'datos'
+          }
         },
       },
     },
@@ -58,21 +58,13 @@ export default defineConfig({
               expiration: { maxEntries: 300, maxAgeSeconds: 60 * 60 * 24 * 30 },
             },
           },
-          {
-            // Catálogo y consultas: red primero, caché como respaldo
-            // cuando el delivery se queda sin señal.
-            urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'datos-api',
-              networkTimeoutSeconds: 5,
-              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 },
-            },
-          },
+          // Las respuestas de /rest/v1 llevan datos filtrados por el JWT.
+          // Workbox usa la URL como clave y no separa esa cache por usuario;
+          // guardarlas podria mostrar datos de la sesion anterior sin red.
+          // React Query conserva la respuesta solo en memoria durante la
+          // sesion y se limpia al salir.
         ],
       },
-
-      devOptions: { enabled: true },
     }),
   ],
 })

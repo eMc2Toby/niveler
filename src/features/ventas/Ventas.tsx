@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Plus } from 'lucide-react'
+import { PackageCheck, Plus } from 'lucide-react'
 import {
   Boton, Campo, Cargando, ErrorCarga, EstadoVacio, Etiqueta, Modal, Selector,
 } from '@/components/ui'
@@ -13,10 +13,25 @@ import { fechaHora, numero } from '@/lib/formato'
 import { mensajeError } from '@/lib/utils'
 
 export default function Ventas() {
-  const { anularVentas } = usePermisos()
+  const { anularVentas, vender } = usePermisos()
+  const qc = useQueryClient()
   const ventas = useQuery({ queryKey: ['ventas'], queryFn: () => api.ventas() })
   const [registrando, setRegistrando] = useState(false)
   const [anulando, setAnulando] = useState<any | null>(null)
+
+  const entregar = useMutation({
+    mutationFn: (id: string) => api.entregarVenta(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['ventas'] })
+      qc.invalidateQueries({ queryKey: ['stock'] })
+      qc.invalidateQueries({ queryKey: ['stock-ubicacion'] })
+      qc.invalidateQueries({ queryKey: ['producto-stock'] })
+      qc.invalidateQueries({ queryKey: ['movimientos'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
+      toast.success('Venta entregada; la reserva salio del stock')
+    },
+    onError: (e) => toast.error(mensajeError(e, 'No se pudo entregar la venta.')),
+  })
 
   if (ventas.isLoading) return <Cargando />
   if (ventas.isError) return <ErrorCarga onReintentar={() => ventas.refetch()} />
@@ -91,11 +106,24 @@ export default function Ventas() {
                     </p>
                   </div>
 
-                  {anularVentas && v.estado !== 'ANULADA' && (
-                    <Boton variante="fantasma" className="px-3" onClick={() => setAnulando(v)}>
-                      Anular
-                    </Boton>
-                  )}
+                  <div className="flex shrink-0 gap-1">
+                    {vender && v.estado === 'PENDIENTE' && (
+                      <Boton
+                        variante="secundario"
+                        className="px-3"
+                        cargando={entregar.isPending && entregar.variables === v.id}
+                        onClick={() => entregar.mutate(v.id)}
+                      >
+                        <PackageCheck className="h-4 w-4" />
+                        Entregar
+                      </Boton>
+                    )}
+                    {anularVentas && v.estado !== 'ANULADA' && (
+                      <Boton variante="fantasma" className="px-3" onClick={() => setAnulando(v)}>
+                        Anular
+                      </Boton>
+                    )}
+                  </div>
                 </div>
               </li>
             )
@@ -148,6 +176,8 @@ function FormularioVenta({ onCerrar }: { onCerrar: () => void }) {
     onSuccess: (r: any) => {
       qc.invalidateQueries({ queryKey: ['ventas'] })
       qc.invalidateQueries({ queryKey: ['stock'] })
+      qc.invalidateQueries({ queryKey: ['stock-ubicacion'] })
+      qc.invalidateQueries({ queryKey: ['producto-stock'] })
       qc.invalidateQueries({ queryKey: ['dashboard'] })
       qc.invalidateQueries({ queryKey: ['movimientos'] })
       toast.success(`Venta ${r?.codigo ?? ''} registrada`)
@@ -247,9 +277,11 @@ function ModalAnularVenta({ venta, onCerrar }: { venta: any; onCerrar: () => voi
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['ventas'] })
       qc.invalidateQueries({ queryKey: ['stock'] })
+      qc.invalidateQueries({ queryKey: ['stock-ubicacion'] })
+      qc.invalidateQueries({ queryKey: ['producto-stock'] })
       qc.invalidateQueries({ queryKey: ['movimientos'] })
       qc.invalidateQueries({ queryKey: ['dashboard'] })
-      toast.success('Venta anulada, el stock volvió')
+      toast.success('Venta anulada y stock actualizado')
       onCerrar()
     },
     onError: (e) => toast.error(mensajeError(e, 'No se pudo anular la venta.')),
@@ -259,8 +291,9 @@ function ModalAnularVenta({ venta, onCerrar }: { venta: any; onCerrar: () => voi
     <Modal abierto titulo={`Anular ${venta.codigo}`} onCerrar={onCerrar}>
       <div className="space-y-4">
         <p className="text-sm text-slate-600">
-          Se revierte el movimiento de salida y la mercadería vuelve a la ubicación
-          de donde salió. La venta queda en el historial marcada como anulada.
+          {venta.estado === 'PENDIENTE'
+            ? 'Se libera la reserva y la venta queda en el historial marcada como anulada.'
+            : 'Se revierte el movimiento de salida y la mercadería vuelve a la ubicación de donde salió. La venta queda en el historial marcada como anulada.'}
         </p>
         <Campo
           etiqueta="Motivo"

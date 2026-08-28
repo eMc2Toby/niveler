@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database'
+import type { ProductoExcel } from '@/lib/excel'
 
 const url = import.meta.env.VITE_SUPABASE_URL
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -48,6 +49,11 @@ export type ItemVenta = {
   producto_id: string
   cantidad: number
 }
+
+type TipoMovimiento = Database['public']['Enums']['tipo_movimiento']
+type SucursalInsert = Database['public']['Tables']['sucursales']['Insert']
+type ClienteInsert = Database['public']['Tables']['clientes']['Insert']
+type DeliveryInsert = Database['public']['Tables']['deliveries']['Insert']
 
 export type ProductoFormulario = {
   sku: string
@@ -220,7 +226,7 @@ export const api = {
   },
 
   async registrarMovimiento(args: {
-    tipo: string
+    tipo: TipoMovimiento
     origen: string
     destino: string
     items: ItemMovimiento[]
@@ -231,7 +237,7 @@ export const api = {
       p_ubicacion_origen_id: args.origen,
       p_ubicacion_destino_id: args.destino,
       p_items: args.items,
-      p_observaciones: args.observaciones ?? null,
+      p_observaciones: args.observaciones,
     })
     // El mensaje del error viene de la base: "Stock insuficiente de X en Y…"
     if (error) throw new Error(error.message)
@@ -248,9 +254,9 @@ export const api = {
     const { data, error } = await supabase.rpc('rpc_registrar_venta', {
       p_ubicacion_id: args.ubicacionId,
       p_items: args.items,
-      p_cliente_id: args.clienteId ?? null,
+      p_cliente_id: args.clienteId,
       p_estado: args.estado ?? 'ENTREGADA',
-      p_observaciones: args.observaciones ?? null,
+      p_observaciones: args.observaciones,
     })
     if (error) throw new Error(error.message)
     return data
@@ -261,7 +267,7 @@ export const api = {
       p_origen_id: origen,
       p_destino_id: destino,
       p_items: items,
-      p_observaciones: obs ?? null,
+      p_observaciones: obs,
     })
     if (error) throw new Error(error.message)
     return data
@@ -269,6 +275,24 @@ export const api = {
 
   async enviarTransferencia(id: string) {
     const { data, error } = await supabase.rpc('rpc_enviar_transferencia', { p_transferencia_id: id })
+    if (error) throw new Error(error.message)
+    return data
+  },
+
+  /** Importación atómica: validación, resolución de catálogos y upsert viven en PostgreSQL. */
+  async importarProductos(productos: ProductoExcel[]) {
+    const { data, error } = await supabase.rpc('rpc_importar_productos', {
+      p_productos: productos,
+    })
+    if (error) throw new Error(traducir(error.message))
+    return data as { creados: number; actualizados: number; total: number }
+  },
+
+  async anularTransferencia(id: string, motivo: string) {
+    const { data, error } = await supabase.rpc('rpc_anular_transferencia', {
+      p_transferencia_id: id,
+      p_motivo: motivo,
+    })
     if (error) throw new Error(error.message)
     return data
   },
@@ -313,7 +337,7 @@ export const api = {
     return data
   },
 
-  async guardarSucursal(id: string | null, datos: Record<string, any>) {
+  async guardarSucursal(id: string | null, datos: SucursalInsert) {
     const q = id
       ? supabase.from('sucursales').update(datos).eq('id', id)
       : supabase.from('sucursales').insert(datos)
@@ -340,7 +364,7 @@ export const api = {
     const { data, error } = await supabase
       .from('movimientos')
       .select(`
-        id, codigo, tipo, estado, fecha, observaciones,
+        id, codigo, tipo, estado, fecha, observaciones, referencia_tabla, referencia_id,
         origen:ubicaciones!movimientos_ubicacion_origen_id_fkey ( nombre, tipo ),
         destino:ubicaciones!movimientos_ubicacion_destino_id_fkey ( nombre, tipo ),
         usuario:usuarios ( nombre_completo ),
@@ -399,29 +423,26 @@ export const api = {
     return data
   },
 
-  /** Anular una venta revierte su movimiento de salida: el stock vuelve. */
+  /** Convierte una reserva pendiente en una salida real de stock. */
+  async entregarVenta(ventaId: string) {
+    const { data, error } = await supabase.rpc('rpc_entregar_venta', {
+      p_venta_id: ventaId,
+    })
+    if (error) throw new Error(error.message)
+    return data
+  },
+
+  /**
+   * Anula la venta y su efecto de stock en una sola transacción de base.
+   * Si estaba pendiente libera la reserva; si fue entregada revierte la salida.
+   */
   async anularVenta(ventaId: string, motivo: string) {
-    const { data: movs, error: e1 } = await supabase
-      .from('movimientos')
-      .select('id')
-      .eq('referencia_tabla', 'ventas')
-      .eq('referencia_id', ventaId)
-      .eq('estado', 'CONFIRMADO')
-    if (e1) throw new Error(e1.message)
-
-    for (const m of movs ?? []) {
-      const { error } = await supabase.rpc('sp_anular_movimiento', {
-        p_movimiento_id: m.id,
-        p_motivo: motivo,
-      })
-      if (error) throw new Error(error.message)
-    }
-
-    const { error: e2 } = await supabase
-      .from('ventas')
-      .update({ estado: 'ANULADA', observaciones: motivo })
-      .eq('id', ventaId)
-    if (e2) throw new Error(traducir(e2.message))
+    const { data, error } = await supabase.rpc('rpc_anular_venta', {
+      p_venta_id: ventaId,
+      p_motivo: motivo,
+    })
+    if (error) throw new Error(error.message)
+    return data
   },
 
   // ------------------------------------------------------------ clientes
@@ -432,7 +453,7 @@ export const api = {
     return data
   },
 
-  async guardarCliente(id: string | null, datos: Record<string, any>) {
+  async guardarCliente(id: string | null, datos: ClienteInsert) {
     const q = id
       ? supabase.from('clientes').update(datos).eq('id', id)
       : supabase.from('clientes').insert(datos)
@@ -463,7 +484,7 @@ export const api = {
     return data
   },
 
-  async guardarDelivery(id: string | null, datos: Record<string, any>) {
+  async guardarDelivery(id: string | null, datos: DeliveryInsert) {
     const q = id
       ? supabase.from('deliveries').update(datos).eq('id', id)
       : supabase.from('deliveries').insert(datos)
@@ -519,21 +540,55 @@ export const api = {
   // ------------------------------------------------------------ reportes
 
   async masVendidos() {
-    const { data, error } = await supabase.from('v_productos_mas_vendidos').select('*').limit(50)
+    const { data, error } = await supabase
+      .from('v_productos_mas_vendidos')
+      .select('*')
+      .order('unidades_vendidas', { ascending: false })
+      .limit(50)
     if (error) throw error
     return data
   },
 
   async sinMovimiento() {
-    const { data, error } = await supabase.from('v_productos_sin_movimiento').select('*').limit(100)
+    const { data, error } = await supabase
+      .from('v_productos_sin_movimiento')
+      .select('*')
+      .order('dias_sin_movimiento', { ascending: false, nullsFirst: true })
+      .limit(100)
     if (error) throw error
     return data
   },
 
   async ventasDiarias() {
-    const { data, error } = await supabase.from('v_ventas_diarias').select('*').limit(60)
+    const { data, error } = await supabase
+      .from('v_ventas_diarias')
+      .select('*')
+      .order('dia', { ascending: false })
+      .limit(60)
     if (error) throw error
     return data
+  },
+
+  // ----------------------------------------------------------- auditoría
+
+  async auditoria(filtros: {
+    tabla?: string
+    accion?: 'INSERT' | 'UPDATE' | 'DELETE' | ''
+    desde?: string
+    hasta?: string
+    limite?: number
+  } = {}) {
+    const limite = Math.min(Math.max(filtros.limite ?? 200, 1), 500)
+    const { data, error } = await supabase.rpc('rpc_consultar_auditoria', {
+      p_tabla: filtros.tabla || undefined,
+      p_accion: filtros.accion || undefined,
+      p_desde: filtros.desde || undefined,
+      p_hasta: filtros.hasta || undefined,
+      p_limite: limite,
+    })
+    if (error) throw error
+    const filas = (data ?? []) as any[]
+    return { filas, total: Number(filas[0]?.total ?? 0) }
   },
 }
 

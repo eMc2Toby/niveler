@@ -4,11 +4,20 @@ import { registerSW } from 'virtual:pwa-register'
 import App from './App'
 import './styles/globals.css'
 
-// Cuando se publica una versión nueva, se aplica sin que nadie haga nada.
-registerSW({ immediate: true })
+async function iniciar() {
+  // Versiones anteriores guardaban respuestas autenticadas de Supabase en
+  // Cache Storage. Se eliminan antes de montar React para que ninguna
+  // consulta inicial pueda reutilizar datos de una sesion anterior.
+  if ('caches' in window) await window.caches.delete('datos-api')
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>
-)
+  // Cuando se publica una version nueva, se aplica sin intervencion manual.
+  registerSW({ immediate: true })
+
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  )
+}
+
+void iniciar()

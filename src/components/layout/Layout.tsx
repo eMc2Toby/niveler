@@ -2,7 +2,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, Package, Warehouse, ArrowLeftRight, Truck,
   ShoppingCart, Users, FileBarChart, Building2, ArrowRightLeft,
-  LogOut, WifiOff, Boxes,
+  LogOut, WifiOff, Boxes, History,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useAuth, usePermisos } from '@/hooks/useAuth'
@@ -28,6 +28,7 @@ const MENU: Item[] = [
   { a: '/deliveries',      texto: 'Deliveries',    Icono: Truck,           nivel: 40 },
   { a: '/clientes',        texto: 'Clientes',      Icono: Users,           nivel: 30 },
   { a: '/reportes',        texto: 'Reportes',      Icono: FileBarChart,    nivel: 60 },
+  { a: '/auditoria',       texto: 'Auditoría',     Icono: History,         nivel: 80 },
   { a: '/sucursales',      texto: 'Sucursales',    Icono: Building2,       nivel: 100 },
   { a: '/usuarios',        texto: 'Usuarios',      Icono: Users,           nivel: 100 },
 ]

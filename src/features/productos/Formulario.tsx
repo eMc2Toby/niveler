@@ -69,15 +69,17 @@ export default function FormularioProducto({
       categoria_id: v.categoria_id || null,
       marca_id: v.marca_id || null,
     }
+    let imagenNueva: string | null = null
 
     // La foto se sube antes de guardar la fila: si la subida falla, no
     // queremos un producto apuntando a una imagen que no existe.
     if (foto !== undefined) {
       setSubiendo(true)
       try {
-        datos.imagen_url = foto
+        imagenNueva = foto
           ? await api.subirImagen(v.sku.trim(), foto, extensionDe(foto))
           : null
+        datos.imagen_url = imagenNueva
       } catch (e) {
         setSubiendo(false)
         toast.error(mensajeError(e, 'No se pudo subir la imagen.'))
@@ -86,7 +88,14 @@ export default function FormularioProducto({
       setSubiendo(false)
     }
 
-    await guardar.mutateAsync(datos)
+    try {
+      await guardar.mutateAsync(datos)
+    } catch {
+      // La subida ocurre antes que la fila para no guardar una URL rota. Si
+      // luego falla la fila, se compensa eliminando el archivo recien subido.
+      if (imagenNueva) await api.borrarImagen(imagenNueva)
+      return
+    }
 
     // Recién con la fila guardada se borra la foto vieja: si se borrara
     // antes y el guardado fallara, el producto se quedaría sin imagen.

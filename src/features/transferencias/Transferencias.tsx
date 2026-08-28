@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { ArrowRight, Plus, Send, PackageCheck } from 'lucide-react'
+import { ArrowRight, Plus, Send, PackageCheck, XCircle } from 'lucide-react'
 import {
   Boton, Campo, Cargando, ErrorCarga, EstadoVacio, Etiqueta, Modal, Selector,
 } from '@/components/ui'
@@ -22,16 +22,23 @@ const TONO: Record<string, 'neutro' | 'verde' | 'ambar' | 'rojo'> = {
 
 export default function Transferencias() {
   const { moverStock } = usePermisos()
+  const { propias } = useMisUbicaciones()
   const qc = useQueryClient()
   const transferencias = useQuery({ queryKey: ['transferencias'], queryFn: api.transferencias })
   const [creando, setCreando] = useState(false)
   const [recibiendo, setRecibiendo] = useState<any | null>(null)
+  const [anulando, setAnulando] = useState<any | null>(null)
+  const idsPropios = new Set(propias.map((u) => u.id))
 
   const enviar = useMutation({
     mutationFn: (id: string) => api.enviarTransferencia(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['transferencias'] })
       qc.invalidateQueries({ queryKey: ['stock'] })
+      qc.invalidateQueries({ queryKey: ['stock-ubicacion'] })
+      qc.invalidateQueries({ queryKey: ['producto-stock'] })
+      qc.invalidateQueries({ queryKey: ['movimientos'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
       toast.success('Enviada: la mercadería está en tránsito')
     },
     onError: (e) => toast.error(mensajeError(e, 'No se pudo enviar.')),
@@ -107,17 +114,23 @@ export default function Transferencias() {
 
               {moverStock && (
                 <div className="mt-3 flex gap-2">
-                  {t.estado === 'BORRADOR' && (
-                    <Boton
-                      variante="secundario"
-                      cargando={enviar.isPending}
-                      onClick={() => enviar.mutate(t.id)}
-                    >
-                      <Send className="h-4 w-4" />
-                      Enviar
-                    </Boton>
+                  {t.estado === 'BORRADOR' && idsPropios.has(t.origen?.id) && (
+                    <>
+                      <Boton
+                        variante="secundario"
+                        cargando={enviar.isPending && enviar.variables === t.id}
+                        onClick={() => enviar.mutate(t.id)}
+                      >
+                        <Send className="h-4 w-4" />
+                        Enviar
+                      </Boton>
+                      <Boton variante="fantasma" onClick={() => setAnulando(t)}>
+                        <XCircle className="h-4 w-4" />
+                        Anular
+                      </Boton>
+                    </>
                   )}
-                  {(t.estado === 'ENVIADA' || t.estado === 'RECIBIDA_PARCIAL') && (
+                  {t.estado === 'ENVIADA' && idsPropios.has(t.destino?.id) && (
                     <Boton onClick={() => setRecibiendo(t)}>
                       <PackageCheck className="h-4 w-4" />
                       Recibir
@@ -133,6 +146,9 @@ export default function Transferencias() {
       {creando && <FormularioTransferencia onCerrar={() => setCreando(false)} />}
       {recibiendo && (
         <ModalRecepcion transferencia={recibiendo} onCerrar={() => setRecibiendo(null)} />
+      )}
+      {anulando && (
+        <ModalAnularTransferencia transferencia={anulando} onCerrar={() => setAnulando(null)} />
       )}
     </div>
   )
@@ -167,6 +183,8 @@ function FormularioTransferencia({ onCerrar }: { onCerrar: () => void }) {
       ),
     onSuccess: (r: any) => {
       qc.invalidateQueries({ queryKey: ['transferencias'] })
+      qc.invalidateQueries({ queryKey: ['stock'] })
+      qc.invalidateQueries({ queryKey: ['stock-ubicacion'] })
       toast.success(`Transferencia ${r?.codigo ?? ''} creada en borrador`)
       onCerrar()
     },
@@ -235,6 +253,59 @@ function FormularioTransferencia({ onCerrar }: { onCerrar: () => void }) {
   )
 }
 
+function ModalAnularTransferencia({
+  transferencia,
+  onCerrar,
+}: {
+  transferencia: any
+  onCerrar: () => void
+}) {
+  const qc = useQueryClient()
+  const [motivo, setMotivo] = useState('')
+  const anular = useMutation({
+    mutationFn: () => api.anularTransferencia(transferencia.id, motivo),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['transferencias'] })
+      qc.invalidateQueries({ queryKey: ['stock'] })
+      qc.invalidateQueries({ queryKey: ['stock-ubicacion'] })
+      toast.success('Transferencia anulada; la reserva fue liberada')
+      onCerrar()
+    },
+    onError: (e) => toast.error(mensajeError(e, 'No se pudo anular la transferencia.')),
+  })
+
+  return (
+    <Modal abierto titulo={`Anular ${transferencia.codigo}`} onCerrar={onCerrar}>
+      <div className="space-y-4">
+        <p className="text-sm text-slate-600">
+          La transferencia sigue en borrador. Al anularla se libera el stock reservado
+          y el documento permanece en el historial.
+        </p>
+        <Campo
+          etiqueta="Motivo"
+          placeholder="Cantidad equivocada, cambio de destino…"
+          value={motivo}
+          onChange={(e) => setMotivo(e.target.value)}
+        />
+        <div className="flex gap-3">
+          <Boton variante="secundario" className="flex-1" onClick={onCerrar}>
+            Cancelar
+          </Boton>
+          <Boton
+            variante="peligro"
+            className="flex-1"
+            disabled={!motivo.trim()}
+            cargando={anular.isPending}
+            onClick={() => anular.mutate()}
+          >
+            Anular transferencia
+          </Boton>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
 /**
  * Recepción. Por defecto llega todo lo enviado; si algo falta se corrige la
  * cantidad y la base manda la diferencia a MERMA en un movimiento aparte.
@@ -260,7 +331,10 @@ function ModalRecepcion({ transferencia, onCerrar }: { transferencia: any; onCer
     onSuccess: (r: any) => {
       qc.invalidateQueries({ queryKey: ['transferencias'] })
       qc.invalidateQueries({ queryKey: ['stock'] })
+      qc.invalidateQueries({ queryKey: ['stock-ubicacion'] })
+      qc.invalidateQueries({ queryKey: ['producto-stock'] })
       qc.invalidateQueries({ queryKey: ['movimientos'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
       toast.success(
         r?.con_faltante
           ? 'Recibida con faltantes: la diferencia quedó en merma'
@@ -274,6 +348,14 @@ function ModalRecepcion({ transferencia, onCerrar }: { transferencia: any; onCer
   const hayFaltante = transferencia.detalle.some(
     (d: any) => Number(recibidos[d.id]) < Number(d.cantidad_enviada),
   )
+  const recepcionValida = transferencia.detalle.every((d: any) => {
+    const valor = recibidos[d.id]
+    const cantidad = Number(valor)
+    return valor !== ''
+      && Number.isFinite(cantidad)
+      && cantidad >= 0
+      && cantidad <= Number(d.cantidad_enviada)
+  })
 
   return (
     <Modal abierto titulo={`Recibir ${transferencia.codigo}`} onCerrar={onCerrar}>
@@ -295,6 +377,8 @@ function ModalRecepcion({ transferencia, onCerrar }: { transferencia: any; onCer
               <input
                 type="number"
                 inputMode="numeric"
+                min="0"
+                max={d.cantidad_enviada}
                 aria-label={`Recibidas de ${d.producto?.nombre}`}
                 value={recibidos[d.id]}
                 onChange={(e) => setRecibidos({ ...recibidos, [d.id]: e.target.value })}
@@ -314,7 +398,12 @@ function ModalRecepcion({ transferencia, onCerrar }: { transferencia: any; onCer
           <Boton variante="secundario" className="flex-1" onClick={onCerrar}>
             Cancelar
           </Boton>
-          <Boton className="flex-1" cargando={recibir.isPending} onClick={() => recibir.mutate()}>
+          <Boton
+            className="flex-1"
+            disabled={!recepcionValida}
+            cargando={recibir.isPending}
+            onClick={() => recibir.mutate()}
+          >
             Confirmar recepción
           </Boton>
         </div>

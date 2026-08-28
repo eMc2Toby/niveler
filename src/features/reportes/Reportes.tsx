@@ -1,12 +1,10 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import {
-  Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
-} from 'recharts'
 import { Download } from 'lucide-react'
+import { toast } from 'sonner'
 import { Boton, Cargando, ErrorCarga, EstadoVacio } from '@/components/ui'
 import { api } from '@/lib/supabase'
-import { descargarCSV } from '@/lib/exportar'
+import { descargarExcel } from '@/lib/excel'
 import { fecha, numero } from '@/lib/formato'
 
 const PESTANAS = [
@@ -59,6 +57,19 @@ function Encabezado({
   filas: any[]
   archivo: string
 }) {
+  const [descargando, setDescargando] = useState(false)
+
+  async function descargar() {
+    setDescargando(true)
+    try {
+      await descargarExcel(archivo, filas, titulo)
+    } catch {
+      toast.error('No se pudo generar el archivo de Excel.')
+    } finally {
+      setDescargando(false)
+    }
+  }
+
   return (
     <div className="flex items-start justify-between gap-3">
       <div>
@@ -68,7 +79,8 @@ function Encabezado({
       <Boton
         variante="secundario"
         disabled={!filas.length}
-        onClick={() => descargarCSV(archivo, filas)}
+        cargando={descargando}
+        onClick={() => void descargar()}
       >
         <Download className="h-4 w-4" />
         Excel
@@ -104,32 +116,7 @@ function MasVendidos() {
         archivo="mas-vendidos"
       />
 
-      <div className="rounded-xl border border-slate-200 bg-white p-5">
-        <ResponsiveContainer width="100%" height={280}>
-          <BarChart data={(q.data ?? []).slice(0, 10)} margin={{ left: -20, right: 8 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-            <XAxis
-              dataKey="sku"
-              tick={{ fontSize: 11, fill: '#64748b' }}
-              axisLine={false}
-              tickLine={false}
-              interval={0}
-              angle={-35}
-              textAnchor="end"
-              height={55}
-            />
-            <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-            <Tooltip
-              formatter={(v: number) => [numero(v), 'unidades']}
-              labelFormatter={(sku: string) =>
-                (q.data ?? []).find((r: any) => r.sku === sku)?.producto ?? sku
-              }
-              contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13 }}
-            />
-            <Bar dataKey="unidades_vendidas" fill="#10b981" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+      <GraficoVendidos datos={(q.data ?? []).slice(0, 10)} />
 
       <Tabla
         columnas={['Producto', 'Unidades', 'Registros', 'Última']}
@@ -143,6 +130,34 @@ function MasVendidos() {
           r.ultima_venta ? fecha(r.ultima_venta) : '—',
         ])}
       />
+    </div>
+  )
+}
+
+function GraficoVendidos({ datos }: { datos: any[] }) {
+  const maximo = Math.max(1, ...datos.map((dato) => Number(dato.unidades_vendidas) || 0))
+  return (
+    <div
+      className="space-y-3 rounded-xl border border-slate-200 bg-white p-5"
+      role="img"
+      aria-label="Gráfico de los diez productos más vendidos"
+    >
+      {datos.map((dato) => {
+        const cantidad = Number(dato.unidades_vendidas) || 0
+        return (
+          <div key={dato.sku} className="grid grid-cols-[minmax(5rem,9rem)_1fr_3rem] items-center gap-3 text-sm">
+            <span className="truncate text-slate-600" title={dato.producto}>{dato.sku}</span>
+            <div className="h-5 overflow-hidden rounded bg-slate-100">
+              <div
+                className="h-full min-w-0 rounded bg-emerald-500"
+                style={{ width: `${Math.max(cantidad > 0 ? 2 : 0, (cantidad / maximo) * 100)}%` }}
+                title={`${dato.producto}: ${numero(cantidad)} unidades`}
+              />
+            </div>
+            <span className="text-right font-medium text-slate-700">{numero(cantidad)}</span>
+          </div>
+        )
+      })}
     </div>
   )
 }

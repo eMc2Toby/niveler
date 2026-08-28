@@ -21,17 +21,32 @@ falla: no hay base contra la cual hablar.
 ## Preparar la base de datos
 
 1. Crear el proyecto en [supabase.com](https://supabase.com), región São Paulo.
-2. SQL Editor → ejecutar en orden `db/01_schema.sql`, `02`, `03`, `04`, `05`.
-3. Storage → crear el bucket público `productos` y subir `imagenes_productos/`.
+2. SQL Editor → ejecutar en orden los archivos `db/01_...sql` a `db/12_...sql`.
+3. Subir `imagenes_productos_webp/` al bucket público `productos` creado por
+   `db/07_storage.sql`.
 4. Authentication → Users → crear el usuario admin y activarlo con el `update`
    del final de `db/05_seed.sql`.
 5. Copiar *Project URL* y *anon key* (Settings → API) al `.env`.
 
-Después conviene reemplazar los tipos escritos a mano por los generados:
+En una base que ya tenía ejecutados los archivos 01–11, aplicar solamente
+`db/12_integridad_y_permisos.sql`. Esa migración cierra las escrituras directas
+de ventas y transferencias, vuelve atómicas sus reservas/anulaciones, restringe
+las RPC por sucursal y corrige los reportes de stock.
+
+Las mismas migraciones están versionadas formalmente en `supabase/migrations/`.
+Para un proyecto nuevo se pueden aplicar con Supabase CLI; en una base existente
+se conserva el orden anterior y se ejecuta solo la migración que falte.
+
+Después conviene regenerar los tipos directamente desde el proyecto remoto. El
+script obtiene el project ref de `VITE_SUPABASE_URL`; solo requiere haber iniciado
+sesión con Supabase CLI o definir `SUPABASE_ACCESS_TOKEN`:
 
 ```bash
-npx supabase gen types typescript --project-id TU_ID > src/types/database.ts
+npm run types
 ```
+
+`src/types/database.ts` fue generado desde el proyecto remoto el 28 de agosto de
+2026. Debe regenerarse después de cada cambio de esquema; no se mantiene a mano.
 
 ## Comandos
 
@@ -40,6 +55,11 @@ npx supabase gen types typescript --project-id TU_ID > src/types/database.ts
 | `npm run dev` | Servidor de desarrollo en http://localhost:5173 |
 | `npm run build` | Verifica tipos y compila a `dist/` |
 | `npm run preview` | Sirve el build, útil para probar la PWA |
+| `npm run lint` | Revisa el código TypeScript/React y los scripts |
+| `npm test` | Ejecuta las pruebas unitarias y de contrato SQL |
+| `npm run test:e2e` | Ejecuta las pruebas públicas y, con credenciales, las de administrador |
+| `npm run types` | Regenera los tipos desde el proyecto real de Supabase |
+| `npm run db:status` | Compara el historial local y remoto de migraciones |
 | `node scripts/generar-iconos.mjs` | Regenera los íconos provisionales de `public/icons/` |
 | `node scripts/comprimir-imagenes.mjs` | Convierte `imagenes_productos/` a WebP para subir |
 
@@ -50,7 +70,8 @@ npx supabase gen types typescript --project-id TU_ID > src/types/database.ts
 | Auth y layout | Login, roles, sidebar en PC y barra inferior en móvil |
 | Dashboard | Totales, stock por ciudad, alertas de reposición, tiempo real |
 | Productos | Catálogo con búsqueda, alta y edición con foto, detalle con stock por ubicación |
-| Kardex | Historial de cada producto, con saldo acumulado por bodega y exportación |
+| Importación Excel | Plantilla XLSX, validación, previsualización e importación atómica del catálogo |
+| Kardex | Historial de cada producto, con saldo acumulado por bodega y exportación XLSX |
 | Inventario | Stock por ubicación, conteo físico con ajuste y acceso al kardex |
 | Movimientos | Entradas, entregas a repartidor, devoluciones, mermas, historial y anulación |
 | Transferencias | Crear, enviar, recibir con faltantes, seguimiento |
@@ -59,10 +80,17 @@ npx supabase gen types typescript --project-id TU_ID > src/types/database.ts
 | Deliveries | Repartidores, stock en su poder y rendición |
 | Sucursales | Alta y edición de las ciudades |
 | Usuarios | Aprobar cuentas, asignar rol y sucursal |
-| Reportes | Más vendidos, sin movimiento, salidas por día, stock completo, todo exportable |
+| Reportes | Más vendidos, sin movimiento, salidas por día, stock completo, todo exportable a XLSX |
+| Auditoría | Consulta filtrable de cambios, detalle JSON y exportación XLSX para administradores |
 
-Falta la exportación a Excel nativa (hoy se baja CSV, que Excel abre directo)
-y el módulo de auditoría, que hoy solo se consulta desde la base.
+Las pruebas E2E de administrador se habilitan con `E2E_ADMIN_EMAIL` y
+`E2E_ADMIN_PASSWORD`. Esas variables se usan solo durante la prueba y no deben
+subirse al repositorio; `.env.e2e` está ignorado por Git.
+
+```dotenv
+E2E_ADMIN_EMAIL=administrador@ejemplo.com
+E2E_ADMIN_PASSWORD=contraseña-de-pruebas
+```
 
 ## Cuentas y roles
 
@@ -88,12 +116,28 @@ propia app, en Usuarios → "Qué puede cada rol".
 ## Estado de la base de datos
 
 El proyecto vive en Supabase (`InvetarioNiveler`), región **São Paulo
-(sa-east-1)**, la más cercana a Bolivia. Ya están ejecutados los ocho archivos
-de `db/`: 17 tablas, 10 vistas, 19 funciones, 33 políticas RLS, los 6 roles,
-las 7 sucursales, las 11 ubicaciones, 7 categorías y los 80 productos. El
-bucket `productos` está creado y es público.
+(sa-east-1)**, la más cercana a Bolivia. El repositorio contiene 12 scripts SQL:
+17 tablas, 10 vistas, políticas RLS, RPC de stock/ventas/transferencias, los 6
+roles, las 7 sucursales, ubicaciones virtuales y el catálogo inicial. El bucket
+`productos` es público para lectura; las escrituras requieren nivel 60.
 
-Falta lo que depende de elegir una contraseña, así que lo haces tú:
+Las 12 versiones de `supabase/migrations/` están registradas como aplicadas en el
+historial remoto y `supabase migration list --linked` las muestra alineadas.
+
+## Cloudflare
+
+El proyecto es una SPA estática: el backend sigue siendo Supabase. Está publicado
+como el Worker `niveler`, con Static Assets, en
+[niveler.aqjaq18.workers.dev](https://niveler.aqjaq18.workers.dev). El archivo
+`wrangler.jsonc` declara `dist` como directorio de assets y el fallback de SPA,
+por lo que funcionan también las rutas abiertas directamente, como `/ventas` y
+`/nueva-password`.
+
+El orden de una publicación que cambie RPC es obligatorio: aplicar y verificar
+primero la migración en Supabase, compilar/probar después y recién entonces
+desplegar con `npx wrangler deploy`.
+
+Para una instalación nueva, la cuenta administradora inicial se crea así:
 
 1. **Authentication → Users → Add user** con tu correo y contraseña.
 2. Activarlo como administrador, en el SQL Editor:
@@ -105,6 +149,13 @@ update usuarios
        nombre_completo = 'Tu nombre'
  where email = 'tu@correo.com';
 ```
+
+La instalación productiva de Niveler ya tiene su cuenta administradora. Sus
+credenciales no se guardan en este repositorio.
+
+El 28 de agosto de 2026 se validaron en producción, con esa cuenta, la importación
+XLSX, la venta pendiente y entrega, las anulaciones, el envío y recepción de
+transferencias, el retorno del stock a cero y la consulta detallada de auditoría.
 
 Las 77 imágenes ya están en el bucket. Si hay que volver a subirlas (o cargar
 las de un producto nuevo), hay dos caminos: con la `service_role` key en
