@@ -6,13 +6,12 @@
  * que después la descargue. Convertirla aquí, antes de que salga del
  * teléfono, evita las dos cosas y no necesita servidor.
  *
- * Los mismos números que usa `scripts/comprimir-imagenes.mjs` para las
- * fotos del catálogo original, para que todo el bucket sea homogéneo:
- * 1000 px de ancho máximo y calidad 82.
+ * Los mismos límites que usa `scripts/comprimir-imagenes.mjs` para las
+ * fotos del catálogo original: 1200 px por lado y 500 KB como máximo.
  */
 
-const ANCHO_MAXIMO = 1000
-const CALIDAD = 0.82
+export const DIMENSION_MAXIMA = 1200
+export const LIMITE_FINAL = 500 * 1024
 
 export const LIMITE_ORIGEN = 15 * 1024 * 1024 // 15 MB de foto de entrada
 
@@ -28,34 +27,40 @@ export async function comprimirAWebp(archivo: File): Promise<Blob> {
   // una foto tomada en vertical no termine acostada.
   const bitmap = await createImageBitmap(archivo, { imageOrientation: 'from-image' })
 
-  const escala = Math.min(1, ANCHO_MAXIMO / bitmap.width)
-  const ancho = Math.round(bitmap.width * escala)
-  const alto = Math.round(bitmap.height * escala)
+  const dimensiones = [DIMENSION_MAXIMA, 1000, 800, 640, 480]
+  const calidades = [0.82, 0.74, 0.66, 0.58, 0.50, 0.42]
 
-  const lienzo = document.createElement('canvas')
-  lienzo.width = ancho
-  lienzo.height = alto
+  try {
+    for (const dimension of dimensiones) {
+      const escala = Math.min(1, dimension / Math.max(bitmap.width, bitmap.height))
+      const ancho = Math.max(1, Math.round(bitmap.width * escala))
+      const alto = Math.max(1, Math.round(bitmap.height * escala))
+      const lienzo = document.createElement('canvas')
+      lienzo.width = ancho
+      lienzo.height = alto
+      const ctx = lienzo.getContext('2d')
+      if (!ctx) throw new Error('El navegador no pudo procesar la imagen.')
+      ctx.drawImage(bitmap, 0, 0, ancho, alto)
 
-  const ctx = lienzo.getContext('2d')
-  if (!ctx) throw new Error('El navegador no pudo procesar la imagen.')
-  ctx.drawImage(bitmap, 0, 0, ancho, alto)
-  bitmap.close()
+      for (const calidad of calidades) {
+        const webp = await new Promise<Blob | null>((resolver) =>
+          lienzo.toBlob(resolver, 'image/webp', calidad),
+        )
+        if (webp?.type === 'image/webp' && webp.size <= LIMITE_FINAL) return webp
 
-  const blob = await new Promise<Blob | null>((resolver) =>
-    lienzo.toBlob(resolver, 'image/webp', CALIDAD),
-  )
-
-  // Safari viejo no sabe escribir WebP y devuelve null o un PNG. Si pasa,
-  // mejor subir un JPEG comprimido que dejar al usuario sin poder guardar.
-  if (!blob || blob.type !== 'image/webp') {
-    const respaldo = await new Promise<Blob | null>((resolver) =>
-      lienzo.toBlob(resolver, 'image/jpeg', CALIDAD),
-    )
-    if (!respaldo) throw new Error('El navegador no pudo convertir la imagen.')
-    return respaldo
+        // Safari antiguo puede no codificar WebP. JPEG también es válido
+        // en el bucket de productos y permite completar la carga.
+        const jpeg = await new Promise<Blob | null>((resolver) =>
+          lienzo.toBlob(resolver, 'image/jpeg', calidad),
+        )
+        if (jpeg?.type === 'image/jpeg' && jpeg.size <= LIMITE_FINAL) return jpeg
+      }
+    }
+  } finally {
+    bitmap.close()
   }
 
-  return blob
+  throw new Error('La imagen continúa pesando más de 500 KB después de optimizarla.')
 }
 
 /** Extensión que le corresponde al blob que salió de comprimirAWebp. */

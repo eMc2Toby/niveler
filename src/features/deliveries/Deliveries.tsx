@@ -141,6 +141,7 @@ function ModalRendicion({ delivery, onCerrar }: { delivery: any; onCerrar: () =>
                 <th className="py-2 px-2 text-right font-medium">Recibió</th>
                 <th className="py-2 px-2 text-right font-medium">Vendió</th>
                 <th className="py-2 px-2 text-right font-medium">Devolvió</th>
+                <th className="py-2 px-2 text-right font-medium">Otros</th>
                 <th className="py-2 pl-2 text-right font-medium">Tiene</th>
               </tr>
             </thead>
@@ -148,7 +149,10 @@ function ModalRendicion({ delivery, onCerrar }: { delivery: any; onCerrar: () =>
               {rendicion.data.map((r: any) => {
                 // Lo que debería tener menos lo que tiene: si no da cero, falta algo.
                 const esperado =
-                  Number(r.total_recibido) - Number(r.total_vendido) - Number(r.total_retornado)
+                  Number(r.total_recibido)
+                  - Number(r.total_vendido)
+                  - Number(r.total_retornado)
+                  - Number(r.total_otros_salidas ?? 0)
                 const descuadre = esperado - Number(r.en_poder)
                 return (
                   <tr key={r.producto_id}>
@@ -164,6 +168,12 @@ function ModalRendicion({ delivery, onCerrar }: { delivery: any; onCerrar: () =>
                     </td>
                     <td className="py-2 px-2 text-right text-slate-600">
                       {numero(r.total_retornado)}
+                    </td>
+                    <td
+                      className="py-2 px-2 text-right text-slate-600"
+                      title="Transferencias, mermas y ajustes de conteo"
+                    >
+                      {numero(r.total_otros_salidas ?? 0)}
                     </td>
                     <td className="py-2 pl-2 text-right font-medium text-slate-900">
                       {numero(r.en_poder)}
@@ -187,6 +197,7 @@ function ModalRendicion({ delivery, onCerrar }: { delivery: any; onCerrar: () =>
 function FormularioDelivery({ delivery, onCerrar }: { delivery?: any; onCerrar: () => void }) {
   const qc = useQueryClient()
   const sucursales = useSucursales()
+  const deliveries = useDeliveries()
   const cuentas = useQuery({
     queryKey: ['usuarios-delivery'],
     queryFn: api.usuariosDelivery,
@@ -194,7 +205,6 @@ function FormularioDelivery({ delivery, onCerrar }: { delivery?: any; onCerrar: 
   })
   const [f, setF] = useState({
     usuario_id: delivery?.usuario_id ?? '',
-    codigo: delivery?.codigo ?? '',
     nombre: delivery?.nombre ?? '',
     telefono: delivery?.telefono ?? '',
     ci: delivery?.ci ?? '',
@@ -212,22 +222,32 @@ function FormularioDelivery({ delivery, onCerrar }: { delivery?: any; onCerrar: 
         ci: f.ci.trim() || null,
         vehiculo: f.vehiculo.trim() || null,
       }),
-    onSuccess: () => {
+    onSuccess: (guardado) => {
       qc.invalidateQueries({ queryKey: ['deliveries'] })
       qc.invalidateQueries({ queryKey: ['ubicaciones'] })
-      toast.success(delivery ? 'Repartidor actualizado' : 'Repartidor creado')
+      toast.success(delivery ? 'Repartidor actualizado' : `Repartidor ${guardado.codigo} creado`)
       onCerrar()
     },
     onError: (e) => toast.error(mensajeError(e, 'No se pudo guardar el repartidor.')),
   })
 
   const set = (k: keyof typeof f) => (e: any) => setF({ ...f, [k]: e.target.value })
+  const cuentasDisponibles = (cuentas.data ?? []).filter((cuenta: any) =>
+    !(deliveries.data ?? []).some((actual: any) =>
+      actual.usuario_id === cuenta.id && actual.id !== delivery?.id,
+    ),
+  )
 
   return (
     <Modal abierto titulo={delivery ? 'Editar repartidor' : 'Nuevo repartidor'} onCerrar={onCerrar}>
       <div className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
-          <Campo etiqueta="Código" placeholder="DEL-001" value={f.codigo} onChange={set('codigo')} />
+          <Campo
+            etiqueta="Código"
+            value={delivery?.codigo ?? 'Automático al guardar'}
+            disabled
+            ayuda="La base asigna el siguiente correlativo disponible"
+          />
           <Campo etiqueta="Nombre" value={f.nombre} onChange={set('nombre')} />
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -266,7 +286,7 @@ function FormularioDelivery({ delivery, onCerrar }: { delivery?: any; onCerrar: 
           onChange={set('usuario_id')}
         >
           <option value="">Sin cuenta (solo ficha)</option>
-          {cuentas.data?.map((u: any) => (
+          {cuentasDisponibles.map((u: any) => (
             <option key={u.id} value={u.id}>
               {u.nombre_completo} · {u.email}
             </option>
@@ -286,7 +306,7 @@ function FormularioDelivery({ delivery, onCerrar }: { delivery?: any; onCerrar: 
           </Boton>
           <Boton
             className="flex-1"
-            disabled={!f.codigo.trim() || !f.nombre.trim() || !f.sucursal_base_id}
+            disabled={!f.nombre.trim() || !f.sucursal_base_id}
             cargando={guardar.isPending}
             onClick={() => guardar.mutate()}
           >

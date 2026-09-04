@@ -102,7 +102,10 @@ export function SelectorItems({
                 </button>
                 <input
                   type="number"
-                  inputMode="numeric"
+                  inputMode="decimal"
+                  min="0.01"
+                  step="0.01"
+                  max={i.disponible}
                   aria-label={`Cantidad de ${i.nombre}`}
                   value={i.cantidad}
                   onChange={(e) => cambiarCantidad(i.producto_id, Number(e.target.value))}

@@ -2,11 +2,23 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Plus, Search } from 'lucide-react'
-import { Boton, Campo, Cargando, ErrorCarga, EstadoVacio, Etiqueta, Modal } from '@/components/ui'
+import { Boton, Campo, Cargando, ErrorCarga, EstadoVacio, Etiqueta, Modal, Selector } from '@/components/ui'
 import { useClientes } from '@/hooks/useCatalogos'
 import { usePermisos } from '@/hooks/useAuth'
 import { api } from '@/lib/supabase'
 import { mensajeError, normalizar } from '@/lib/utils'
+
+const DEPARTAMENTOS = [
+  'Beni',
+  'Chuquisaca',
+  'Cochabamba',
+  'La Paz',
+  'Oruro',
+  'Pando',
+  'Potosí',
+  'Santa Cruz',
+  'Tarija',
+] as const
 
 export default function Clientes() {
   const { editarClientes } = usePermisos()
@@ -18,7 +30,9 @@ export default function Clientes() {
   const filtrados = useMemo(() => {
     const q = normalizar(busqueda.trim())
     return (clientes.data ?? []).filter(
-      (c: any) => !q || normalizar(`${c.nombre} ${c.nit_ci ?? ''} ${c.telefono ?? ''}`).includes(q),
+      (c: any) => !q || normalizar(
+        `${c.nombre} ${c.telefono ?? ''} ${c.ciudad ?? ''} ${pedidosDe(c).map((p: any) => p.numero).join(' ')}`,
+      ).includes(q),
     )
   }, [clientes.data, busqueda])
 
@@ -44,7 +58,7 @@ export default function Clientes() {
         <Search className="pointer-events-none absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-slate-400" />
         <Campo
           className="pl-10"
-          placeholder="Buscar por nombre, NIT o teléfono"
+          placeholder="Buscar por nombre, teléfono, departamento o pedido"
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
           aria-label="Buscar clientes"
@@ -75,8 +89,13 @@ export default function Clientes() {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-slate-900">{c.nombre}</p>
                 <p className="truncate text-xs text-slate-500">
-                  {[c.nit_ci, c.telefono, c.ciudad].filter(Boolean).join(' · ') || 'Sin datos de contacto'}
+                  {[c.telefono, c.ciudad].filter(Boolean).join(' · ') || 'Sin datos de contacto'}
                 </p>
+                {!!pedidosDe(c).length && (
+                  <p className="truncate text-xs text-emerald-700">
+                    Pedidos: {pedidosDe(c).map((pedido: any) => pedido.numero).join(' · ')}
+                  </p>
+                )}
               </div>
               {!c.activo && <Etiqueta>Inactivo</Etiqueta>}
               {editarClientes && (
@@ -105,23 +124,25 @@ function FormularioCliente({ cliente, onCerrar }: { cliente?: any; onCerrar: () 
   const qc = useQueryClient()
   const [f, setF] = useState({
     nombre: cliente?.nombre ?? '',
-    nit_ci: cliente?.nit_ci ?? '',
     telefono: cliente?.telefono ?? '',
-    email: cliente?.email ?? '',
     direccion: cliente?.direccion ?? '',
     ciudad: cliente?.ciudad ?? '',
+    numero_pedido: '',
     activo: cliente?.activo ?? true,
   })
+  const [errores, setErrores] = useState<Record<string, string>>({})
 
   const guardar = useMutation({
     mutationFn: () =>
       api.guardarCliente(cliente?.id ?? null, {
         ...f,
-        nit_ci: f.nit_ci.trim() || null,
+        // Se conserva el dato histórico al editar, pero ya no se solicita ni
+        // muestra NIT/CI en la interfaz.
+        nit_ci: cliente?.nit_ci ?? null,
         telefono: f.telefono.trim() || null,
-        email: f.email.trim() || null,
         direccion: f.direccion.trim() || null,
         ciudad: f.ciudad.trim() || null,
+        numero_pedido: f.numero_pedido.trim() || null,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['clientes'] })
@@ -131,21 +152,104 @@ function FormularioCliente({ cliente, onCerrar }: { cliente?: any; onCerrar: () 
     onError: (e) => toast.error(mensajeError(e, 'No se pudo guardar el cliente.')),
   })
 
-  const set = (k: keyof typeof f) => (e: any) => setF({ ...f, [k]: e.target.value })
+  const set = (k: keyof typeof f) => (e: any) => {
+    setF({ ...f, [k]: e.target.value })
+    setErrores((actuales) => ({ ...actuales, [k]: '' }))
+  }
+
+  function validar() {
+    const nuevos: Record<string, string> = {}
+    const nombre = f.nombre.trim()
+    const telefono = f.telefono.trim()
+    const direccion = f.direccion.trim()
+    const pedido = f.numero_pedido.trim()
+
+    if (nombre.length < 2) nuevos.nombre = 'Escribe al menos 2 caracteres'
+    else if (nombre.length > 120) nuevos.nombre = 'Máximo 120 caracteres'
+
+    if (telefono && !/^[0-9+()\s-]{7,20}$/.test(telefono)) {
+      nuevos.telefono = 'Usa entre 7 y 20 dígitos o símbolos de teléfono'
+    }
+
+    if (!f.ciudad) nuevos.ciudad = 'Selecciona un departamento'
+    if (direccion.length > 200) nuevos.direccion = 'Máximo 200 caracteres'
+    if (pedido.length > 60) nuevos.numero_pedido = 'Máximo 60 caracteres'
+    if (/[\r\n]/.test(pedido)) nuevos.numero_pedido = 'El pedido debe ir en una sola línea'
+
+    setErrores(nuevos)
+    return Object.keys(nuevos).length === 0
+  }
+
+  function intentarGuardar() {
+    if (validar()) guardar.mutate()
+  }
+
+  const ciudadHistorica = f.ciudad && !DEPARTAMENTOS.includes(f.ciudad as typeof DEPARTAMENTOS[number])
 
   return (
     <Modal abierto titulo={cliente ? 'Editar cliente' : 'Nuevo cliente'} onCerrar={onCerrar}>
       <div className="space-y-4">
-        <Campo etiqueta="Nombre" value={f.nombre} onChange={set('nombre')} />
+        <Campo
+          etiqueta="Nombre"
+          maxLength={120}
+          autoComplete="name"
+          error={errores.nombre}
+          value={f.nombre}
+          onChange={set('nombre')}
+        />
         <div className="grid gap-4 sm:grid-cols-2">
-          <Campo etiqueta="NIT o CI" value={f.nit_ci} onChange={set('nit_ci')} />
-          <Campo etiqueta="Teléfono" inputMode="tel" value={f.telefono} onChange={set('telefono')} />
+          <Campo
+            etiqueta="Teléfono"
+            inputMode="tel"
+            autoComplete="tel"
+            maxLength={20}
+            error={errores.telefono}
+            value={f.telefono}
+            onChange={set('telefono')}
+          />
+          <Selector
+            etiqueta="Departamento"
+            error={errores.ciudad}
+            value={f.ciudad}
+            onChange={set('ciudad')}
+          >
+            <option value="">Seleccionar…</option>
+            {ciudadHistorica && <option value={f.ciudad}>{f.ciudad} (dato anterior)</option>}
+            {DEPARTAMENTOS.map((departamento) => (
+              <option key={departamento} value={departamento}>{departamento}</option>
+            ))}
+          </Selector>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Campo etiqueta="Ciudad" value={f.ciudad} onChange={set('ciudad')} />
-          <Campo etiqueta="Correo" type="email" value={f.email} onChange={set('email')} />
+          <Campo
+            etiqueta={cliente ? 'Agregar número de pedido' : 'Número de pedido'}
+            placeholder="PED-00125"
+            ayuda={cliente ? 'Los números anteriores se conservarán' : 'Opcional; también puede agregarse al vender'}
+            maxLength={60}
+            error={errores.numero_pedido}
+            value={f.numero_pedido}
+            onChange={set('numero_pedido')}
+          />
+          <Campo
+            etiqueta="Dirección"
+            maxLength={200}
+            autoComplete="street-address"
+            error={errores.direccion}
+            value={f.direccion}
+            onChange={set('direccion')}
+          />
         </div>
-        <Campo etiqueta="Dirección" value={f.direccion} onChange={set('direccion')} />
+
+        {cliente && !!pedidosDe(cliente).length && (
+          <div className="rounded-lg bg-slate-50 px-3.5 py-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Pedidos registrados</p>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {pedidosDe(cliente).map((pedido: any) => (
+                <Etiqueta key={pedido.id} tono="verde">{pedido.numero}</Etiqueta>
+              ))}
+            </div>
+          </div>
+        )}
 
         <label className="flex items-center gap-2.5 text-sm text-slate-700">
           <input
@@ -163,9 +267,8 @@ function FormularioCliente({ cliente, onCerrar }: { cliente?: any; onCerrar: () 
           </Boton>
           <Boton
             className="flex-1"
-            disabled={f.nombre.trim().length < 2}
             cargando={guardar.isPending}
-            onClick={() => guardar.mutate()}
+            onClick={intentarGuardar}
           >
             Guardar
           </Boton>
@@ -173,4 +276,10 @@ function FormularioCliente({ cliente, onCerrar }: { cliente?: any; onCerrar: () 
       </div>
     </Modal>
   )
+}
+
+function pedidosDe(cliente: any) {
+  return [...(cliente?.pedidos ?? [])]
+    .filter((pedido: any) => pedido.activo !== false)
+    .sort((a: any, b: any) => String(b.created_at).localeCompare(String(a.created_at)))
 }

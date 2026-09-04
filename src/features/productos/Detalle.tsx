@@ -18,6 +18,12 @@ export default function DetalleProducto({
 
   const p: any = producto.data
   const total = (stock.data ?? []).reduce((s: number, f: any) => s + Number(f.cantidad), 0)
+  const reservado = (stock.data ?? []).reduce(
+    (s: number, f: any) => s + Number(f.cantidad_reservada), 0,
+  )
+  const disponible = (stock.data ?? []).reduce(
+    (s: number, f: any) => s + Number(f.cantidad_disponible), 0,
+  )
 
   return (
     <Modal abierto={!!productoId} onCerrar={onCerrar} titulo={p?.nombre ?? 'Producto'}>
@@ -63,8 +69,10 @@ export default function DetalleProducto({
           <div className="space-y-6">
           {p.descripcion && <p className="text-sm text-slate-600">{p.descripcion}</p>}
 
-          <div className="grid grid-cols-2 gap-3">
-            <Dato titulo="Stock total" valor={`${numero(total)} ${p.unidad_medida.toLowerCase()}`} />
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <Dato titulo="Stock físico" valor={numero(total)} />
+            <Dato titulo="Reservado" valor={numero(reservado)} />
+            <Dato titulo="Disponible" valor={numero(disponible)} />
             <Dato titulo="Stock mínimo" valor={numero(p.stock_minimo)} />
           </div>
 
@@ -84,7 +92,12 @@ export default function DetalleProducto({
                       <p className="truncate text-sm text-slate-900">{f.ubicacion}</p>
                       <p className="text-xs text-slate-500">{f.tipo_ubicacion.toLowerCase()}</p>
                     </div>
-                    <span className="text-sm font-medium text-slate-900">{numero(f.cantidad)}</span>
+                    <div className="text-right">
+                      <span className="text-sm font-medium text-slate-900">
+                        {numero(f.cantidad_disponible)} / {numero(f.cantidad)}
+                      </span>
+                      <p className="text-xs text-slate-400">disponible / físico</p>
+                    </div>
                   </li>
                 ))}
               </ul>

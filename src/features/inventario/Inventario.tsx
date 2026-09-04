@@ -11,6 +11,7 @@ import { usePermisos } from '@/hooks/useAuth'
 import { api, suscribirInventario } from '@/lib/supabase'
 import { numero, fechaHora } from '@/lib/formato'
 import { mensajeError, normalizar } from '@/lib/utils'
+import { avisarSiPendiente } from '@/lib/offline/ui'
 
 export default function Inventario() {
   const { ajustarStock } = usePermisos()
@@ -20,6 +21,7 @@ export default function Inventario() {
   const [ubicacionId, setUbicacionId] = useState('')
   const [busqueda, setBusqueda] = useState('')
   const [contando, setContando] = useState<any | null>(null)
+  const [eligiendoUbicacion, setEligiendoUbicacion] = useState<any | null>(null)
   const [detalle, setDetalle] = useState<string | null>(null)
 
   const fisicas = propias.filter((u) => u.tipo === 'SUCURSAL' || u.tipo === 'DELIVERY')
@@ -37,10 +39,37 @@ export default function Inventario() {
   )
 
   const filas = useMemo(() => {
+    const porProducto = new Map<string, any>()
+    for (const saldo of stock.data ?? []) {
+      if (!saldo.producto_id) continue
+      const actual = porProducto.get(saldo.producto_id) ?? {
+        ...saldo,
+        id: saldo.producto_id,
+        cantidad: 0,
+        cantidad_reservada: 0,
+        cantidad_disponible: 0,
+        ubicaciones: [],
+      }
+      actual.cantidad += Number(saldo.cantidad)
+      actual.cantidad_reservada += Number(saldo.cantidad_reservada)
+      actual.cantidad_disponible += Number(saldo.cantidad_disponible)
+      actual.ubicaciones.push(saldo)
+      if (String(saldo.actualizado_en) > String(actual.actualizado_en)) {
+        actual.actualizado_en = saldo.actualizado_en
+      }
+      porProducto.set(saldo.producto_id, actual)
+    }
+
     const q = normalizar(busqueda.trim())
-    return (stock.data ?? []).filter(
-      (f: any) => !q || normalizar(`${f.producto} ${f.sku}`).includes(q),
-    )
+    return [...porProducto.values()]
+      .map((fila) => ({
+        ...fila,
+        ubicaciones: fila.ubicaciones.sort((a: any, b: any) =>
+          String(a.ubicacion).localeCompare(String(b.ubicacion), 'es')),
+      }))
+      .filter((f: any) => !q || normalizar(
+        `${f.producto} ${f.sku} ${f.ubicaciones.map((u: any) => u.ubicacion).join(' ')}`,
+      ).includes(q))
   }, [stock.data, busqueda])
 
   const totalUnidades = filas.reduce((s: number, f: any) => s + Number(f.cantidad), 0)
@@ -99,21 +128,30 @@ export default function Inventario() {
           {filas.map((f: any) => {
             const bajo = Number(f.cantidad) <= Number(f.stock_minimo) && Number(f.stock_minimo) > 0
             return (
-              <li key={f.id} className="flex items-center gap-3 px-4 py-3">
+              <li key={f.producto_id} className="flex items-start gap-3 px-4 py-3">
                 <button
                   onClick={() => setDetalle(f.producto_id)}
-                  className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                  className="flex min-w-0 flex-1 items-start gap-3 text-left"
                 >
                   <Imagen ruta={f.imagen_url} nombre={f.producto} className="h-11 w-11" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-slate-900">{f.producto}</p>
-                    <p className="truncate text-xs text-slate-500">
-                      {f.sku} · {f.ubicacion}
-                    </p>
+                    <p className="text-xs text-slate-500">SKU {f.sku}</p>
+                    <ul className="mt-1 space-y-0.5">
+                      {f.ubicaciones.map((ubicacion: any) => (
+                        <li key={ubicacion.ubicacion_id} className="text-xs text-slate-500">
+                          <span className="font-medium text-slate-600">{ubicacion.ubicacion}</span>
+                          {' · '}{numero(ubicacion.cantidad_disponible)} disponibles / {numero(ubicacion.cantidad)} total
+                        </li>
+                      ))}
+                    </ul>
                   </div>
 
                   <div className="text-right">
-                    <p className="text-sm font-medium text-slate-900">{numero(f.cantidad)}</p>
+                    <p className="text-sm font-medium text-slate-900">
+                      {numero(f.cantidad_disponible)} / {numero(f.cantidad)}
+                    </p>
+                    <p className="text-[11px] text-slate-400">disponible / total</p>
                     {Number(f.cantidad_reservada) > 0 && (
                       <p className="text-xs text-amber-600">
                         {numero(f.cantidad_reservada)} reservadas
@@ -128,7 +166,10 @@ export default function Inventario() {
                   <Boton
                     variante="fantasma"
                     className="px-3"
-                    onClick={() => setContando(f)}
+                    onClick={() => {
+                      if (f.ubicaciones.length === 1) setContando(f.ubicaciones[0])
+                      else setEligiendoUbicacion(f)
+                    }}
                     aria-label={`Ajustar ${f.producto}`}
                   >
                     <ClipboardCheck className="h-4 w-4" />
@@ -143,8 +184,51 @@ export default function Inventario() {
       {contando && (
         <ModalConteo fila={contando} onCerrar={() => setContando(null)} />
       )}
+      {eligiendoUbicacion && (
+        <ModalElegirUbicacion
+          producto={eligiendoUbicacion}
+          onCerrar={() => setEligiendoUbicacion(null)}
+          onElegir={(fila) => {
+            setEligiendoUbicacion(null)
+            setContando(fila)
+          }}
+        />
+      )}
       <DetalleProducto productoId={detalle} onCerrar={() => setDetalle(null)} />
     </div>
+  )
+}
+
+function ModalElegirUbicacion({
+  producto,
+  onCerrar,
+  onElegir,
+}: {
+  producto: any
+  onCerrar: () => void
+  onElegir: (fila: any) => void
+}) {
+  return (
+    <Modal abierto titulo={`Contar ${producto.producto}`} onCerrar={onCerrar}>
+      <div className="space-y-3">
+        <p className="text-sm text-slate-600">
+          El producto está en varias ubicaciones. Elige cuál vas a contar físicamente.
+        </p>
+        <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200">
+          {producto.ubicaciones.map((fila: any) => (
+            <li key={fila.ubicacion_id} className="flex items-center gap-3 px-3 py-3">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-slate-900">{fila.ubicacion}</p>
+                <p className="text-xs text-slate-500">
+                  {numero(fila.cantidad_disponible)} disponibles / {numero(fila.cantidad)} total
+                </p>
+              </div>
+              <Boton variante="secundario" onClick={() => onElegir(fila)}>Contar</Boton>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </Modal>
   )
 }
 
@@ -160,8 +244,9 @@ function ModalConteo({ fila, onCerrar }: { fila: any; onCerrar: () => void }) {
 
   const ajustar = useMutation({
     mutationFn: () =>
-      api.ajustarStock(fila.producto_id, fila.ubicacion_id, Number(contada), motivo),
+      api.ajustarStock(fila.producto_id, fila.ubicacion_id, Number(contada), motivo.trim()),
     onSuccess: (r: any) => {
+      if (avisarSiPendiente(r)) { onCerrar(); return }
       qc.invalidateQueries({ queryKey: ['stock'] })
       qc.invalidateQueries({ queryKey: ['stock-ubicacion'] })
       qc.invalidateQueries({ queryKey: ['producto-stock'] })
@@ -178,7 +263,13 @@ function ModalConteo({ fila, onCerrar }: { fila: any; onCerrar: () => void }) {
   })
 
   const diferencia = Number(contada || 0) - Number(fila.cantidad)
-  const conteoValido = contada !== '' && Number.isFinite(Number(contada)) && Number(contada) >= 0
+  const motivoLimpio = motivo.trim()
+  const conteoValido = contada !== '' && Number.isFinite(Number(contada))
+    && Number(contada) >= 0 && Number(contada) <= 999999999
+  const errorConteo = contada !== '' && !conteoValido ? 'Escribe una cantidad válida entre 0 y 999.999.999' : undefined
+  const errorMotivo = motivoLimpio.length > 0 && motivoLimpio.length < 3
+    ? 'Escribe al menos 3 caracteres'
+    : motivoLimpio.length > 300 ? 'Máximo 300 caracteres' : undefined
 
   return (
     <Modal abierto titulo="Conteo físico" onCerrar={onCerrar}>
@@ -204,6 +295,9 @@ function ModalConteo({ fila, onCerrar }: { fila: any; onCerrar: () => void }) {
             type="number"
             inputMode="numeric"
             min="0"
+            max="999999999"
+            step="0.01"
+            error={errorConteo}
             value={contada}
             onChange={(e) => setContada(e.target.value)}
           />
@@ -224,6 +318,8 @@ function ModalConteo({ fila, onCerrar }: { fila: any; onCerrar: () => void }) {
         <Campo
           etiqueta="Motivo"
           placeholder="Conteo mensual, rotura, faltante…"
+          maxLength={300}
+          error={errorMotivo}
           value={motivo}
           onChange={(e) => setMotivo(e.target.value)}
           ayuda="Queda registrado en el movimiento de ajuste"
@@ -236,7 +332,7 @@ function ModalConteo({ fila, onCerrar }: { fila: any; onCerrar: () => void }) {
           <Boton
             className="flex-1"
             cargando={ajustar.isPending}
-            disabled={!motivo.trim() || !conteoValido}
+            disabled={motivoLimpio.length < 3 || !!errorMotivo || !conteoValido}
             onClick={() => ajustar.mutate()}
           >
             Registrar conteo

@@ -20,7 +20,7 @@ export function CampoImagen({
 }: {
   rutaActual: string | null
   nombre: string
-  /** Recibe el blob ya comprimido, o null si se quitó la foto. */
+  /** Recibe el blob ya comprimido, o null al quitar. */
   onElegir: (blob: Blob | null) => void
 }) {
   const entrada = useRef<HTMLInputElement>(null)

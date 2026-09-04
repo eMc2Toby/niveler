@@ -31,11 +31,13 @@ export default function ImportarExcel({ productos }: { productos: any[] }) {
 
   function cerrar() {
     setResultado(null)
+    importar.reset()
     if (input.current) input.current.value = ''
   }
 
   async function seleccionar(archivo?: File) {
     if (!archivo) return
+    importar.reset()
     setAnalizando(true)
     try {
       setResultado(await leerProductosExcel(archivo))
@@ -148,6 +150,12 @@ export default function ImportarExcel({ productos }: { productos: any[] }) {
                   </p>
                 )}
               </div>
+            )}
+
+            {importar.isError && (
+              <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                {importar.error.message}
+              </p>
             )}
 
             <div className="flex flex-wrap justify-between gap-2 border-t border-slate-100 pt-4">

@@ -35,6 +35,8 @@ const COLUMNAS_PRODUCTO: Record<keyof ProductoExcel, string[]> = {
   activo: ['activo', 'estado'],
 }
 
+const UNIDADES_PRODUCTO = new Set(['UNIDAD', 'CAJA', 'PAQUETE', 'PAR', 'METRO', 'KILO', 'LITRO'])
+
 const ETIQUETAS: Record<string, string> = {
   sku: 'SKU',
   producto: 'Producto',
@@ -133,6 +135,9 @@ export function interpretarFilasProductos(filas: unknown[][]): ResultadoImportac
 
     const sku = texto(fila[indices.sku]).toUpperCase()
     const nombre = texto(fila[indices.nombre])
+    const unidad = (indices.unidad_medida < 0
+      ? 'UNIDAD'
+      : texto(fila[indices.unidad_medida]) || 'UNIDAD').toUpperCase()
     const stock = indices.stock_minimo < 0 ? 0 : numeroNoNegativo(fila[indices.stock_minimo])
     const activoLeido = indices.activo < 0 ? true : booleano(fila[indices.activo])
 
@@ -141,6 +146,12 @@ export function interpretarFilasProductos(filas: unknown[][]): ResultadoImportac
     if (sku && vistos.has(sku)) errores.push({ fila: numeroFila, mensaje: `El SKU ${sku} está repetido.` })
     if (!Number.isFinite(stock) || stock < 0) {
       errores.push({ fila: numeroFila, mensaje: 'Stock mínimo debe ser un número mayor o igual a cero.' })
+    }
+    if (!UNIDADES_PRODUCTO.has(unidad)) {
+      errores.push({
+        fila: numeroFila,
+        mensaje: `Unidad de medida inválida. Usa: ${[...UNIDADES_PRODUCTO].join(', ')}.`,
+      })
     }
     if (activoLeido === null) {
       errores.push({ fila: numeroFila, mensaje: 'Activo debe ser Sí/No, Verdadero/Falso o 1/0.' })
@@ -153,9 +164,7 @@ export function interpretarFilasProductos(filas: unknown[][]): ResultadoImportac
       descripcion: indices.descripcion < 0 ? null : texto(fila[indices.descripcion]) || null,
       categoria: indices.categoria < 0 ? null : texto(fila[indices.categoria]) || null,
       marca: indices.marca < 0 ? null : texto(fila[indices.marca]) || null,
-      unidad_medida: indices.unidad_medida < 0
-        ? 'unidad'
-        : texto(fila[indices.unidad_medida]) || 'unidad',
+      unidad_medida: unidad,
       stock_minimo: Number.isFinite(stock) ? stock : 0,
       activo: activoLeido ?? true,
     })
@@ -240,7 +249,7 @@ export async function descargarPlantillaProductos() {
     descripcion: 'Descripción opcional',
     categoria: '',
     marca: '',
-    unidad_medida: 'unidad',
+    unidad_medida: 'UNIDAD',
     stock_minimo: 0,
     activo: true,
   }], 'Productos')

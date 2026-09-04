@@ -128,9 +128,8 @@ function FormularioSucursal({ sucursal, onCerrar }: { sucursal?: any; onCerrar: 
         </label>
 
         {!sucursal && (
-          <p className="rounded-lg bg-amber-50 px-3.5 py-2.5 text-xs text-amber-800">
-            Después de crearla hay que darle su ubicación de bodega, con el insert
-            de `05_seed.sql`. Sin ubicación no puede recibir stock.
+          <p className="rounded-lg bg-emerald-50 px-3.5 py-2.5 text-xs text-emerald-800">
+            Al guardar se creará automáticamente su ubicación de bodega para recibir stock.
           </p>
         )}
 

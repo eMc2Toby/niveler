@@ -5,7 +5,7 @@ describe('interpretarFilasProductos', () => {
   it('normaliza encabezados, decimales y valores booleanos', () => {
     const resultado = interpretarFilasProductos([
       ['Código SKU', 'Nombre', 'Descripción', 'Categoría', 'Marca', 'Unidad', 'Stock mínimo', 'Estado'],
-      [' prd-01 ', 'Lámpara', '', 'Iluminación', 'Niveler', 'pieza', '2,5', 'Sí'],
+      [' prd-01 ', 'Lámpara', '', 'Iluminación', 'Niveler', 'par', '2,5', 'Sí'],
       ['prd-02', 'Cable', null, '', '', '', 0, 'inactivo'],
     ])
 
@@ -17,7 +17,7 @@ describe('interpretarFilasProductos', () => {
         descripcion: null,
         categoria: 'Iluminación',
         marca: 'Niveler',
-        unidad_medida: 'pieza',
+        unidad_medida: 'PAR',
         stock_minimo: 2.5,
         activo: true,
       },
@@ -27,7 +27,7 @@ describe('interpretarFilasProductos', () => {
         descripcion: null,
         categoria: null,
         marca: null,
-        unidad_medida: 'unidad',
+        unidad_medida: 'UNIDAD',
         stock_minimo: 0,
         activo: false,
       },
@@ -53,5 +53,15 @@ describe('interpretarFilasProductos', () => {
       expect.stringContaining('mayor o igual a cero'),
       expect.stringContaining('Activo'),
     ]))
+  })
+
+  it('rechaza unidades ajenas al catálogo antes de llamar al backend', () => {
+    const resultado = interpretarFilasProductos([
+      ['SKU', 'Nombre', 'Unidad'],
+      ['A-1', 'Uno', 'pieza'],
+    ])
+
+    expect(resultado.productos[0].unidad_medida).toBe('PIEZA')
+    expect(resultado.errores[0].mensaje).toContain('Unidad de medida inválida')
   })
 })

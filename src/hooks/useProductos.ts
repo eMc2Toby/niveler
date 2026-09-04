@@ -47,6 +47,12 @@ export function useGuardarProducto(id?: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: claves.lista })
       if (id) qc.invalidateQueries({ queryKey: claves.uno(id) })
+      if (!id) {
+        qc.invalidateQueries({ queryKey: ['stock'] })
+        qc.invalidateQueries({ queryKey: ['stock-ubicacion'] })
+        qc.invalidateQueries({ queryKey: ['movimientos'] })
+        qc.invalidateQueries({ queryKey: ['dashboard'] })
+      }
       toast.success(id ? 'Producto actualizado' : 'Producto creado')
     },
     onError: (e) => toast.error(mensajeError(e, 'No se pudo guardar el producto.')),

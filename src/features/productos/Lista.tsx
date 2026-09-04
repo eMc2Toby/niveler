@@ -111,8 +111,13 @@ export default function ListaProductos() {
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs text-slate-500">mínimo</p>
-                  <p className="text-sm font-medium text-slate-900">{numero(p.stock_minimo)}</p>
+                  <p className="text-xs text-slate-500">disponible / total</p>
+                  <p className="text-sm font-medium text-slate-900">
+                    {numero(p.stock_disponible ?? 0)} / {numero(p.stock_total ?? 0)}
+                  </p>
+                  {Number(p.stock_reservado) > 0 && (
+                    <p className="text-xs text-amber-600">{numero(p.stock_reservado)} reservado</p>
+                  )}
                 </div>
               </button>
 

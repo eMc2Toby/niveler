@@ -6,8 +6,15 @@ export const numero = (v: number | null | undefined) => {
   }).format(n)
 }
 
-export const fecha = (iso: string) =>
-  new Date(iso).toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric' })
+export const fecha = (iso: string) => {
+  // PostgreSQL devuelve las columnas `date` como YYYY-MM-DD. JavaScript las
+  // interpreta como medianoche UTC y en Bolivia eso cae en el día anterior.
+  // Al no haber hora real, se fija el mediodía local para conservar el día.
+  const valor = /^\d{4}-\d{2}-\d{2}$/.test(iso) ? `${iso}T12:00:00` : iso
+  return new Date(valor).toLocaleDateString('es-BO', {
+    day: '2-digit', month: 'short', year: 'numeric',
+  })
+}
 
 export const fechaHora = (iso: string) =>
   new Date(iso).toLocaleString('es-BO', {

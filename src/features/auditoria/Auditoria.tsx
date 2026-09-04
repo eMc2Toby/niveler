@@ -11,7 +11,7 @@ import { api } from '@/lib/supabase'
 const TABLAS = [
   'productos', 'inventario', 'ventas', 'ventas_detalle', 'movimientos',
   'transferencias', 'transferencias_detalle', 'clientes', 'deliveries',
-  'sucursales', 'usuarios',
+  'sucursales', 'usuarios', 'encomiendas',
 ]
 
 type Filtros = {

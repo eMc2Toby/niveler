@@ -118,6 +118,51 @@ export type Database = {
           },
         ]
       }
+      cliente_pedidos: {
+        Row: {
+          activo: boolean
+          cliente_id: string
+          creado_por: string | null
+          created_at: string
+          id: string
+          numero: string
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          cliente_id: string
+          creado_por?: string | null
+          created_at?: string
+          id?: string
+          numero: string
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          cliente_id?: string
+          creado_por?: string | null
+          created_at?: string
+          id?: string
+          numero?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cliente_pedidos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cliente_pedidos_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clientes: {
         Row: {
           activo: boolean
@@ -176,7 +221,7 @@ export type Database = {
         Insert: {
           activo?: boolean
           ci?: string | null
-          codigo: string
+          codigo?: string
           created_at?: string
           id?: string
           nombre: string
@@ -714,6 +759,47 @@ export type Database = {
           },
         ]
       }
+      operaciones_idempotentes: {
+        Row: {
+          clave: string
+          completed_at: string | null
+          created_at: string
+          id: number
+          payload_hash: string
+          resultado: Json | null
+          tipo: string
+          usuario_id: string
+        }
+        Insert: {
+          clave: string
+          completed_at?: string | null
+          created_at?: string
+          id?: never
+          payload_hash: string
+          resultado?: Json | null
+          tipo: string
+          usuario_id: string
+        }
+        Update: {
+          clave?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: never
+          payload_hash?: string
+          resultado?: Json | null
+          tipo?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operaciones_idempotentes_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       productos: {
         Row: {
           activo: boolean
@@ -1201,6 +1287,7 @@ export type Database = {
           fecha: string
           id: string
           observaciones: string | null
+          pedido_cliente_id: string | null
           sucursal_id: string | null
           ubicacion_id: string
           updated_at: string
@@ -1215,6 +1302,7 @@ export type Database = {
           fecha?: string
           id?: string
           observaciones?: string | null
+          pedido_cliente_id?: string | null
           sucursal_id?: string | null
           ubicacion_id: string
           updated_at?: string
@@ -1229,12 +1317,20 @@ export type Database = {
           fecha?: string
           id?: string
           observaciones?: string | null
+          pedido_cliente_id?: string | null
           sucursal_id?: string | null
           ubicacion_id?: string
           updated_at?: string
           usuario_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_ventas_pedido_cliente"
+            columns: ["pedido_cliente_id", "cliente_id"]
+            isOneToOne: false
+            referencedRelation: "cliente_pedidos"
+            referencedColumns: ["id", "cliente_id"]
+          },
           {
             foreignKeyName: "ventas_cliente_id_fkey"
             columns: ["cliente_id"]
@@ -1421,6 +1517,7 @@ export type Database = {
           producto: string | null
           producto_id: string | null
           sku: string | null
+          total_otros_salidas: number | null
           total_recibido: number | null
           total_retornado: number | null
           total_vendido: number | null
@@ -1712,6 +1809,37 @@ export type Database = {
         }
         Returns: Json
       }
+      rpc_crear_producto_con_stock: {
+        Args: {
+          p_activo: boolean
+          p_categoria_id: string
+          p_descripcion: string
+          p_imagen_url?: string
+          p_marca_id: string
+          p_nombre: string
+          p_sku: string
+          p_stock_inicial: number
+          p_stock_minimo: number
+          p_ubicacion_destino_id: string
+          p_unidad_medida: string
+        }
+        Returns: Json
+      }
+      rpc_crear_producto_con_stock_auto: {
+        Args: {
+          p_activo: boolean
+          p_categoria_id: string
+          p_descripcion: string
+          p_imagen_url?: string
+          p_marca_id: string
+          p_nombre: string
+          p_stock_inicial: number
+          p_stock_minimo: number
+          p_ubicacion_destino_id: string
+          p_unidad_medida: string
+        }
+        Returns: Json
+      }
       rpc_crear_transferencia: {
         Args: {
           p_destino_id: string
@@ -1725,6 +1853,10 @@ export type Database = {
         Args: { p_encomienda_id: string }
         Returns: Json
       }
+      rpc_ejecutar_operacion_offline: {
+        Args: { p_clave: string; p_payload: Json; p_tipo: string }
+        Returns: Json
+      }
       rpc_entregar_encomienda: {
         Args: { p_encomienda_id: string }
         Returns: Json
@@ -1732,6 +1864,19 @@ export type Database = {
       rpc_entregar_venta: { Args: { p_venta_id: string }; Returns: Json }
       rpc_enviar_transferencia: {
         Args: { p_transferencia_id: string }
+        Returns: Json
+      }
+      rpc_guardar_cliente: {
+        Args: {
+          p_activo: boolean
+          p_ciudad: string
+          p_cliente_id: string
+          p_direccion: string
+          p_nit_ci: string
+          p_nombre: string
+          p_numero_pedido: string
+          p_telefono: string
+        }
         Returns: Json
       }
       rpc_importar_productos: { Args: { p_productos: Json }; Returns: Json }
@@ -1754,6 +1899,17 @@ export type Database = {
           p_cliente_id?: string
           p_estado?: Database["public"]["Enums"]["estado_venta"]
           p_items: Json
+          p_observaciones?: string
+          p_ubicacion_id: string
+        }
+        Returns: Json
+      }
+      rpc_registrar_venta_con_pedido: {
+        Args: {
+          p_cliente_id?: string
+          p_estado?: Database["public"]["Enums"]["estado_venta"]
+          p_items: Json
+          p_numero_pedido?: string
           p_observaciones?: string
           p_ubicacion_id: string
         }

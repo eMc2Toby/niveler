@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useAuth, usePermisos } from '@/hooks/useAuth'
+import { useEstadoOffline } from '@/hooks/useEstadoOffline'
 
 type Item = {
   a: string
@@ -24,6 +25,7 @@ const MENU: Item[] = [
   { a: '/productos',       texto: 'Productos',     Icono: Package,         nivel: 10, enMovil: true },
   { a: '/ventas',          texto: 'Ventas',        Icono: ShoppingCart,    nivel: 10, enMovil: true },
   { a: '/encomiendas',     texto: 'Encomiendas',   Icono: PackageOpen,     nivel: 10 },
+  { a: '/sincronizacion',  texto: 'Sincronización',Icono: WifiOff,         nivel: 10 },
   { a: '/movimientos',     texto: 'Movimientos',   Icono: ArrowLeftRight,  nivel: 40 },
   { a: '/transferencias',  texto: 'Transferencias',Icono: ArrowRightLeft,  nivel: 40 },
   { a: '/deliveries',      texto: 'Deliveries',    Icono: Truck,           nivel: 40 },
@@ -38,19 +40,8 @@ export default function Layout() {
   const { perfil, salir } = useAuth()
   const { nivel } = usePermisos()
   const { pathname } = useLocation()
-  const [enLinea, setEnLinea] = useState(navigator.onLine)
+  const { enLinea, pendientes, errores } = useEstadoOffline()
   const [menuAbierto, setMenuAbierto] = useState(false)
-
-  useEffect(() => {
-    const sube = () => setEnLinea(true)
-    const baja = () => setEnLinea(false)
-    window.addEventListener('online', sube)
-    window.addEventListener('offline', baja)
-    return () => {
-      window.removeEventListener('online', sube)
-      window.removeEventListener('offline', baja)
-    }
-  }, [])
 
   useEffect(() => setMenuAbierto(false), [pathname])
 
@@ -227,8 +218,19 @@ export default function Layout() {
       {!enLinea && (
         <div className="flex items-center justify-center gap-2 bg-amber-400 px-4 py-2 text-sm font-medium text-amber-950 lg:ml-72">
           <WifiOff className="h-4 w-4" />
-          Sin conexión. Puedes consultar, pero no registrar movimientos.
+          Sin conexión. Puedes consultar y las operaciones compatibles quedarán pendientes.
+          {pendientes > 0 && ` ${pendientes} por sincronizar.`}
+          <NavLink to="/sincronizacion" className="ml-1 underline">Ver cola</NavLink>
         </div>
+      )}
+      {enLinea && (pendientes > 0 || errores > 0) && (
+        <NavLink to="/sincronizacion" className={`block px-4 py-2 text-center text-sm font-medium lg:ml-72 ${
+          errores > 0 ? 'bg-red-100 text-red-800' : 'bg-sky-100 text-sky-800'
+        }`}>
+          {errores > 0
+            ? `${errores} operación${errores === 1 ? '' : 'es'} requiere${errores === 1 ? '' : 'n'} revisión.`
+            : `Sincronizando ${pendientes} operación${pendientes === 1 ? '' : 'es'} pendiente${pendientes === 1 ? '' : 's'}…`}
+        </NavLink>
       )}
 
       {/* ---------- Contenido ---------- */}

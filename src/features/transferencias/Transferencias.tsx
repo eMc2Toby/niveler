@@ -11,6 +11,7 @@ import { usePermisos } from '@/hooks/useAuth'
 import { api } from '@/lib/supabase'
 import { fecha, numero } from '@/lib/formato'
 import { mensajeError } from '@/lib/utils'
+import { avisarSiPendiente } from '@/lib/offline/ui'
 
 const TONO: Record<string, 'neutro' | 'verde' | 'ambar' | 'rojo'> = {
   BORRADOR: 'neutro',
@@ -32,7 +33,8 @@ export default function Transferencias() {
 
   const enviar = useMutation({
     mutationFn: (id: string) => api.enviarTransferencia(id),
-    onSuccess: () => {
+    onSuccess: (resultado) => {
+      if (avisarSiPendiente(resultado)) return
       qc.invalidateQueries({ queryKey: ['transferencias'] })
       qc.invalidateQueries({ queryKey: ['stock'] })
       qc.invalidateQueries({ queryKey: ['stock-ubicacion'] })
@@ -52,7 +54,7 @@ export default function Transferencias() {
       <div className="flex items-center justify-between gap-3">
         <div className="hidden lg:block">
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Transferencias</h1>
-          <p className="text-sm text-slate-500">Entre ciudades, en dos pasos</p>
+          <p className="text-sm text-slate-500">Entre bodegas y deliveries, en dos pasos</p>
         </div>
         {moverStock && (
           <Boton className="ml-auto" onClick={() => setCreando(true)}>
@@ -65,7 +67,7 @@ export default function Transferencias() {
       {!transferencias.data?.length ? (
         <EstadoVacio
           titulo="Todavía no hay transferencias"
-          detalle="Lo que se envía queda en tránsito hasta que la otra ciudad confirma la recepción. Así no desaparece de los saldos mientras viaja."
+          detalle="Lo enviado queda en tránsito hasta que la bodega o el delivery de destino confirma la recepción."
           accion={
             moverStock ? (
               <Boton onClick={() => setCreando(true)}>
@@ -163,9 +165,12 @@ function FormularioTransferencia({ onCerrar }: { onCerrar: () => void }) {
   const [destino, setDestino] = useState('')
   const [items, setItems] = useState<Item[]>([])
   const [observaciones, setObservaciones] = useState('')
+  const [errores, setErrores] = useState<Record<string, string>>({})
 
-  const origenes = propias.filter((u) => u.tipo === 'SUCURSAL')
-  const destinos = todas.filter((u) => u.tipo === 'SUCURSAL' && u.id !== origen)
+  const origenes = propias.filter((u) => u.tipo === 'SUCURSAL' || u.tipo === 'DELIVERY')
+  const destinos = todas.filter(
+    (u) => (u.tipo === 'SUCURSAL' || u.tipo === 'DELIVERY') && u.id !== origen,
+  )
 
   const existencias = useQuery({
     queryKey: ['stock-ubicacion', origen],
@@ -182,6 +187,7 @@ function FormularioTransferencia({ onCerrar }: { onCerrar: () => void }) {
         observaciones.trim() || undefined,
       ),
     onSuccess: (r: any) => {
+      if (avisarSiPendiente(r)) { onCerrar(); return }
       qc.invalidateQueries({ queryKey: ['transferencias'] })
       qc.invalidateQueries({ queryKey: ['stock'] })
       qc.invalidateQueries({ queryKey: ['stock-ubicacion'] })
@@ -191,48 +197,97 @@ function FormularioTransferencia({ onCerrar }: { onCerrar: () => void }) {
     onError: (e) => toast.error(mensajeError(e, 'No se pudo crear la transferencia.')),
   })
 
+  function validar() {
+    const nuevos: Record<string, string> = {}
+    if (!origenes.some((ubicacion) => ubicacion.id === origen)) {
+      nuevos.origen = 'Selecciona una bodega o delivery de origen'
+    }
+    if (!destinos.some((ubicacion) => ubicacion.id === destino)) {
+      nuevos.destino = 'Selecciona una bodega o delivery de destino'
+    }
+    if (origen && destino && origen === destino) nuevos.destino = 'El destino debe ser distinto'
+    if (!items.length) nuevos.items = 'Agrega al menos un producto'
+    else if (items.some((item) => !Number.isFinite(item.cantidad) || item.cantidad <= 0)) {
+      nuevos.items = 'Todas las cantidades deben ser mayores que cero'
+    }
+    if (observaciones.trim().length > 500) nuevos.observaciones = 'Máximo 500 caracteres'
+    setErrores(nuevos)
+    return Object.keys(nuevos).length === 0
+  }
+
+  function intentarCrear() {
+    if (validar()) crear.mutate()
+  }
+
   return (
     <Modal abierto titulo="Nueva transferencia" onCerrar={onCerrar} ancho="max-w-2xl">
       <div className="space-y-4">
         <p className="rounded-lg bg-slate-50 px-3.5 py-2.5 text-sm text-slate-600">
-          Se crea en borrador. El stock recién sale de la bodega cuando la marques
+          Se crea en borrador. El stock recién sale de la ubicación cuando la marques
           como enviada, y llega al destino cuando allá confirmen la recepción.
         </p>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Selector
             etiqueta="Desde"
+            error={errores.origen}
             value={origen}
-            onChange={(e) => { setOrigen(e.target.value); setItems([]) }}
+            onChange={(e) => {
+              setOrigen(e.target.value)
+              setDestino('')
+              setItems([])
+              setErrores((actuales) => ({ ...actuales, origen: '', destino: '', items: '' }))
+            }}
           >
             <option value="">Elegir…</option>
             {origenes.map((u) => (
-              <option key={u.id} value={u.id}>{u.nombre}</option>
+              <option key={u.id} value={u.id}>{etiquetaUbicacion(u)}</option>
             ))}
           </Selector>
-          <Selector etiqueta="Hacia" value={destino} onChange={(e) => setDestino(e.target.value)}>
+          <Selector
+            etiqueta="Hacia"
+            error={errores.destino}
+            value={destino}
+            onChange={(e) => {
+              setDestino(e.target.value)
+              setErrores((actuales) => ({ ...actuales, destino: '' }))
+            }}
+          >
             <option value="">Elegir…</option>
             {destinos.map((u) => (
-              <option key={u.id} value={u.id}>{u.nombre}</option>
+              <option key={u.id} value={u.id}>{etiquetaUbicacion(u)}</option>
             ))}
           </Selector>
         </div>
 
         {!origen ? (
           <p className="rounded-lg bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-            Elige primero la bodega de origen.
+            Elige primero la bodega o delivery de origen.
           </p>
         ) : existencias.isLoading ? (
           <Cargando className="py-8" />
         ) : (
-          <SelectorItems items={items} onCambiar={setItems} existencias={existencias.data ?? []} />
+          <SelectorItems
+            items={items}
+            onCambiar={(nuevos) => {
+              setItems(nuevos)
+              setErrores((actuales) => ({ ...actuales, items: '' }))
+            }}
+            existencias={existencias.data ?? []}
+          />
         )}
+        {errores.items && <p role="alert" className="text-sm text-red-600">{errores.items}</p>}
 
         <Campo
           etiqueta="Observaciones"
           placeholder="Transporte, guía, quién lo lleva…"
+          maxLength={500}
+          error={errores.observaciones}
           value={observaciones}
-          onChange={(e) => setObservaciones(e.target.value)}
+          onChange={(e) => {
+            setObservaciones(e.target.value)
+            setErrores((actuales) => ({ ...actuales, observaciones: '' }))
+          }}
         />
 
         <div className="flex gap-3 pt-1">
@@ -241,9 +296,8 @@ function FormularioTransferencia({ onCerrar }: { onCerrar: () => void }) {
           </Boton>
           <Boton
             className="flex-1"
-            disabled={!origen || !destino || !items.length}
             cargando={crear.isPending}
-            onClick={() => crear.mutate()}
+            onClick={intentarCrear}
           >
             Crear
           </Boton>
@@ -251,6 +305,10 @@ function FormularioTransferencia({ onCerrar }: { onCerrar: () => void }) {
       </div>
     </Modal>
   )
+}
+
+function etiquetaUbicacion(ubicacion: Ubicacion) {
+  return `${ubicacion.nombre} · ${ubicacion.tipo === 'DELIVERY' ? 'Delivery' : 'Bodega'}`
 }
 
 function ModalAnularTransferencia({
@@ -262,9 +320,14 @@ function ModalAnularTransferencia({
 }) {
   const qc = useQueryClient()
   const [motivo, setMotivo] = useState('')
+  const motivoLimpio = motivo.trim()
+  const errorMotivo = motivoLimpio.length > 0 && motivoLimpio.length < 3
+    ? 'Escribe al menos 3 caracteres'
+    : motivoLimpio.length > 300 ? 'Máximo 300 caracteres' : undefined
   const anular = useMutation({
-    mutationFn: () => api.anularTransferencia(transferencia.id, motivo),
-    onSuccess: () => {
+    mutationFn: () => api.anularTransferencia(transferencia.id, motivoLimpio),
+    onSuccess: (resultado) => {
+      if (avisarSiPendiente(resultado)) { onCerrar(); return }
       qc.invalidateQueries({ queryKey: ['transferencias'] })
       qc.invalidateQueries({ queryKey: ['stock'] })
       qc.invalidateQueries({ queryKey: ['stock-ubicacion'] })
@@ -284,6 +347,8 @@ function ModalAnularTransferencia({
         <Campo
           etiqueta="Motivo"
           placeholder="Cantidad equivocada, cambio de destino…"
+          maxLength={300}
+          error={errorMotivo}
           value={motivo}
           onChange={(e) => setMotivo(e.target.value)}
         />
@@ -294,7 +359,7 @@ function ModalAnularTransferencia({
           <Boton
             variante="peligro"
             className="flex-1"
-            disabled={!motivo.trim()}
+            disabled={motivoLimpio.length < 3 || !!errorMotivo}
             cargando={anular.isPending}
             onClick={() => anular.mutate()}
           >
@@ -329,6 +394,7 @@ function ModalRecepcion({ transferencia, onCerrar }: { transferencia: any; onCer
         })),
       ),
     onSuccess: (r: any) => {
+      if (avisarSiPendiente(r)) { onCerrar(); return }
       qc.invalidateQueries({ queryKey: ['transferencias'] })
       qc.invalidateQueries({ queryKey: ['stock'] })
       qc.invalidateQueries({ queryKey: ['stock-ubicacion'] })
@@ -376,8 +442,9 @@ function ModalRecepcion({ transferencia, onCerrar }: { transferencia: any; onCer
               </div>
               <input
                 type="number"
-                inputMode="numeric"
+                inputMode="decimal"
                 min="0"
+                step="0.01"
                 max={d.cantidad_enviada}
                 aria-label={`Recibidas de ${d.producto?.nombre}`}
                 value={recibidos[d.id]}

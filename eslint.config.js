@@ -7,6 +7,8 @@ export default tseslint.config(
   {
     ignores: [
       'dist/**',
+      'backend/dist/**',
+      'backend/node_modules/**',
       'dev-dist/**',
       'node_modules/**',
       'imagenes_productos/**',

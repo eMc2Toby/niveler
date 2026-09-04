@@ -79,9 +79,10 @@ export const Campo = forwardRef<
 
 /* ----------------------------------------------------------------- Select */
 
-export function Selector({
-  etiqueta, error, className, children, id, ...props
-}: React.SelectHTMLAttributes<HTMLSelectElement> & { etiqueta?: string; error?: string }) {
+export const Selector = forwardRef<
+  HTMLSelectElement,
+  React.SelectHTMLAttributes<HTMLSelectElement> & { etiqueta?: string; error?: string }
+>(function Selector({ etiqueta, error, className, children, id, ...props }, ref) {
   const idCampo = id ?? props.name
   return (
     <div>
@@ -91,6 +92,7 @@ export function Selector({
         </label>
       )}
       <select
+        ref={ref}
         id={idCampo}
         className={cn(
           'w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-slate-900 shadow-sm shadow-slate-900/[0.025]',
@@ -105,7 +107,7 @@ export function Selector({
       {error && <p role="alert" className="mt-1.5 text-sm text-red-600">{error}</p>}
     </div>
   )
-}
+})
 
 /* ------------------------------------------------------------------ Badge */
 

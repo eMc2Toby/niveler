@@ -1,7 +1,10 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { activarSincronizacionOutbox } from '@/lib/offline/outbox'
+import { esErrorConexion, guardarCacheUsuario, leerCacheUsuario } from '@/lib/offline/cache'
+import { limpiarDatosLocales } from '@/lib/offline/db'
 
 export type Perfil = {
   id: string
@@ -37,6 +40,7 @@ export function ProveedorAuth({ children }: { children: ReactNode }) {
   const [sesion, setSesion] = useState<Session | null>(null)
   const [perfil, setPerfil] = useState<Perfil | null>(null)
   const [cargando, setCargando] = useState(true)
+  const ultimoUsuario = useRef<string | null>(null)
 
   async function cargarPerfil(userId: string) {
     const { data, error } = await supabase
@@ -49,7 +53,13 @@ export function ProveedorAuth({ children }: { children: ReactNode }) {
       .eq('id', userId)
       .single()
 
-    if (error || !data) { setPerfil(null); return }
+    if (error || !data) {
+      const local = error && esErrorConexion(error)
+        ? await leerCacheUsuario<Perfil>(userId, 'perfil')
+        : undefined
+      setPerfil(local ?? null)
+      return
+    }
 
     // ¿Es repartidor? Entonces su stock vive en su propia ubicación.
     const { data: delivery } = await supabase
@@ -74,11 +84,13 @@ export function ProveedorAuth({ children }: { children: ReactNode }) {
       ? await supabase.from('ubicaciones').select('id').or(filtro).maybeSingle()
       : { data: null }
 
-    setPerfil({
+    const perfilCargado: Perfil = {
       ...(data as any),
       delivery_id: delivery?.id ?? null,
       ubicacion_id: ubicacion?.id ?? null,
-    })
+    }
+    setPerfil(perfilCargado)
+    await guardarCacheUsuario(userId, 'perfil', perfilCargado)
   }
 
   useEffect(() => {
@@ -89,17 +101,27 @@ export function ProveedorAuth({ children }: { children: ReactNode }) {
 
     supabase.auth.getSession().then(async ({ data }) => {
       setSesion(data.session)
-      if (data.session) await cargarPerfil(data.session.user.id)
+      if (data.session) {
+        ultimoUsuario.current = data.session.user.id
+        await cargarPerfil(data.session.user.id)
+      }
       setCargando(false)
     })
 
     const { data: sub } = supabase.auth.onAuthStateChange(async (evento, nuevaSesion) => {
+      const anterior = ultimoUsuario.current
       setSesion(nuevaSesion)
-      if (nuevaSesion) await cargarPerfil(nuevaSesion.user.id)
+      if (nuevaSesion) {
+        if (anterior && anterior !== nuevaSesion.user.id) await limpiarDatosLocales(anterior)
+        ultimoUsuario.current = nuevaSesion.user.id
+        await cargarPerfil(nuevaSesion.user.id)
+      }
       else {
         setPerfil(null)
         if (evento === 'SIGNED_OUT') {
           queryClient.clear()
+          if (anterior) await limpiarDatosLocales(anterior)
+          ultimoUsuario.current = null
           void limpiarCacheDatos()
         }
       }
@@ -107,6 +129,11 @@ export function ProveedorAuth({ children }: { children: ReactNode }) {
 
     return () => sub.subscription.unsubscribe()
   }, [queryClient])
+
+  useEffect(() => {
+    if (!sesion?.user.id) return
+    return activarSincronizacionOutbox(sesion.user.id)
+  }, [sesion?.user.id])
 
   const valor: ContextoAuth = {
     sesion,
@@ -156,9 +183,11 @@ export function ProveedorAuth({ children }: { children: ReactNode }) {
     },
 
     async salir() {
+      const usuarioId = sesion?.user.id
       await supabase.auth.signOut()
       setPerfil(null)
       queryClient.clear()
+      if (usuarioId) await limpiarDatosLocales(usuarioId)
       await limpiarCacheDatos()
     },
     async recuperar(email) {
