@@ -161,8 +161,10 @@ por lo que funcionan también las rutas abiertas directamente, como `/ventas` y
 
 Supabase es el único backend de la aplicación: Auth, PostgreSQL, RPC y Storage.
 
-Último despliegue verificado del 30/08/2026:
-`40fc7ea0-bfd5-4bcf-a1cd-1a1d0a371510` (Worker `niveler`).
+Último despliegue verificado del 04/09/2026:
+`06000e54-c98d-4360-aaf0-499454622641` (Worker `niveler`). El shell HTML de
+la SPA se entrega sin caché para que las rutas ya visitadas reciban cada nueva
+versión de inmediato; los archivos con hash conservan su caché optimizada.
 
 El orden de una publicación que cambie RPC es obligatorio: aplicar y verificar
 primero la migración en Supabase, compilar/probar después y recién entonces
