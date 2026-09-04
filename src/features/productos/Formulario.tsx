@@ -14,10 +14,16 @@ import { numero } from '@/lib/formato'
 
 const UNIDADES = ['UNIDAD', 'CAJA', 'PAQUETE', 'PAR', 'METRO', 'KILO', 'LITRO'] as const
 
-// El SKU se asigna en PostgreSQL para que dos personas puedan registrar a la
-// vez sin repetir códigos. El formulario valida el resto del catálogo antes
-// de hacer el viaje al servidor.
+// El SKU lo define la persona que registra el producto. PostgreSQL conserva la
+// restricción única para impedir duplicados aunque dos personas guarden a la vez.
 const esquema = z.object({
+  sku: z.preprocess(
+    (valor) => typeof valor === 'string' ? valor.trim().toUpperCase() : valor,
+    z.string()
+      .min(1, 'Escribe el código SKU')
+      .max(50, 'Máximo 50 caracteres')
+      .regex(/^[A-Z0-9_-]+$/, 'Usa letras, números, guiones o guion bajo'),
+  ),
   nombre: z.string().trim().min(2, 'Escribe al menos 2 caracteres').max(120, 'Máximo 120 caracteres'),
   descripcion: z.string().trim().max(500, 'Máximo 500 caracteres').optional(),
   categoria_id: z.string().uuid('Categoría inválida').or(z.literal('')).optional(),
@@ -67,6 +73,7 @@ export default function FormularioProducto({
     // `key` en el Modal fuerza el remonte al cambiar de producto, así que
     // los valores por defecto se leen una sola vez y no hace falta reset().
     defaultValues: {
+      sku: producto?.sku ?? '',
       nombre: producto?.nombre ?? '',
       descripcion: producto?.descripcion ?? '',
       categoria_id: producto?.categoria_id ?? '',
@@ -107,7 +114,7 @@ export default function FormularioProducto({
       setSubiendo(true)
       try {
         imagenNueva = foto
-          ? await api.subirImagen(producto?.sku ?? v.nombre, foto, extensionDe(foto))
+          ? await api.subirImagen(v.sku, foto, extensionDe(foto))
           : null
         datos.imagen_url = imagenNueva
       } catch (e) {
@@ -157,10 +164,17 @@ export default function FormularioProducto({
       <form onSubmit={handleSubmit(enviar)} className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <Campo
-            etiqueta="Código (SKU automático)"
-            value={producto?.sku ?? 'Se asignará al guardar: 1, 2, 3…'}
-            disabled
-            ayuda={producto ? 'El código no cambia al editar' : 'La base asigna el siguiente número disponible'}
+            etiqueta="Código (SKU)"
+            placeholder="Ej.: PRD-081"
+            maxLength={50}
+            autoCapitalize="characters"
+            spellCheck={false}
+            readOnly={!!producto}
+            ayuda={producto
+              ? 'El código no cambia al editar'
+              : 'Obligatorio y único. Usa letras, números, guiones o guion bajo'}
+            error={errors.sku?.message}
+            {...register('sku')}
           />
           <Selector etiqueta="Unidad" error={errors.unidad_medida?.message} {...register('unidad_medida')}>
             {UNIDADES.map((u) => (

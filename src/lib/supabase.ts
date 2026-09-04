@@ -50,6 +50,7 @@ type SucursalInsert = Database['public']['Tables']['sucursales']['Insert']
 type DeliveryInsert = Database['public']['Tables']['deliveries']['Insert']
 
 export type ProductoFormulario = {
+  sku: string
   nombre: string
   descripcion?: string | null
   categoria_id?: string | null
@@ -165,6 +166,7 @@ export const api = {
     // estos parámetros. El cast se limita al contrato RPC; los valores siguen
     // llegando como null real y la función valida las reglas de negocio.
     const argumentos = {
+      p_sku: p.sku.trim().toUpperCase(),
       p_nombre: p.nombre,
       p_descripcion: p.descripcion ?? null,
       p_categoria_id: p.categoria_id || null,
@@ -175,8 +177,8 @@ export const api = {
       p_stock_inicial: p.stock_inicial ?? 0,
       p_ubicacion_destino_id: p.ubicacion_destino_id || null,
       p_imagen_url: p.imagen_url ?? null,
-    } as unknown as Database['public']['Functions']['rpc_crear_producto_con_stock_auto']['Args']
-    const { data, error } = await supabase.rpc('rpc_crear_producto_con_stock_auto', argumentos)
+    } as unknown as Database['public']['Functions']['rpc_crear_producto_con_stock']['Args']
+    const { data, error } = await supabase.rpc('rpc_crear_producto_con_stock', argumentos)
     if (error) throw new Error(traducir(error.message))
     return data
   },

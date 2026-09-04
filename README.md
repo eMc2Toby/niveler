@@ -77,7 +77,7 @@ de cada migración remota.
 |---|---|
 | Auth y layout | Login, roles, sidebar en PC y barra inferior en móvil |
 | Dashboard | Totales, stock por ciudad, alertas de reposición, tiempo real |
-| Productos | Catálogo con SKU numérico automático, stock inicial por entrada auditada y saldos físico/reservado/disponible por ubicación |
+| Productos | Catálogo con SKU manual obligatorio y único, stock inicial por entrada auditada y saldos físico/reservado/disponible por ubicación |
 | Importación Excel | Plantilla XLSX, validación, previsualización e importación atómica del catálogo |
 | Kardex | Historial de cada producto, con saldo acumulado por bodega y exportación XLSX |
 | Inventario | Un registro por producto, distribución por bodega/delivery, conteo físico con ajuste y acceso al kardex |
@@ -187,6 +187,11 @@ credenciales no se guardan en este repositorio.
 El 28 de agosto de 2026 se validaron en producción, con esa cuenta, la importación
 XLSX, la venta pendiente y entrega, las anulaciones, el envío y recepción de
 transferencias, el retorno del stock a cero y la consulta detallada de auditoría.
+
+Los productos históricos conservan sus SKU actuales. Para un producto nuevo, el
+usuario escribe un SKU único de hasta 50 caracteres usando letras, números,
+guiones o guion bajo; el sistema lo normaliza a mayúsculas y no permite cambiarlo
+al editar.
 
 Las imágenes históricas y nuevas viven en el bucket `productos` de Supabase
 Storage. El script `scripts/subir-imagenes.mjs` se conserva para cargas masivas o

@@ -5,7 +5,6 @@ import { describe, expect, it } from 'vitest'
 const raiz = resolve(import.meta.dirname, '../..')
 const leer = (ruta: string) => readFileSync(resolve(raiz, ruta), 'utf8')
 
-const migracion = leer('db/20_sku_producto_automatico.sql')
 const productos = leer('src/features/productos/Formulario.tsx')
 const clientes = leer('src/features/clientes/Clientes.tsx')
 const ventas = leer('src/features/ventas/Ventas.tsx')
@@ -14,14 +13,13 @@ const inventario = leer('src/features/inventario/Inventario.tsx')
 const datos = leer('src/lib/supabase.ts')
 
 describe('catálogo y operación con deliveries', () => {
-  it('genera SKU numérico en PostgreSQL y conserva el endpoint anterior', () => {
-    expect(migracion).toContain('create sequence if not exists seq_producto_sku')
-    expect(migracion).toContain("where trim(sku) ~ '^[0-9]+$'")
-    expect(migracion).toContain("new.sku := nextval('seq_producto_sku')::text")
-    expect(migracion).toContain('rpc_crear_producto_con_stock_auto')
-    expect(migracion).not.toContain('drop function if exists rpc_crear_producto_con_stock(')
-    expect(productos).toContain('Código (SKU automático)')
-    expect(productos).not.toContain("register('sku')")
+  it('exige un SKU manual y usa el endpoint de creación manual', () => {
+    expect(productos).toContain('etiqueta="Código (SKU)"')
+    expect(productos).toContain("register('sku')")
+    expect(productos).toContain(".regex(/^[A-Z0-9_-]+$/")
+    expect(datos).toContain('p_sku: p.sku.trim().toUpperCase()')
+    expect(datos).toContain("supabase.rpc('rpc_crear_producto_con_stock', argumentos)")
+    expect(datos).not.toContain("supabase.rpc('rpc_crear_producto_con_stock_auto', argumentos)")
   })
 
   it('usa los nueve departamentos y ya no muestra NIT/CI al cliente', () => {
