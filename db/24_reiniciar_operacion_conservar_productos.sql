@@ -1,0 +1,9 @@
+-- Migración de reinicio de operación para la instalación productiva.
+-- Conserva productos, imágenes, categorías, marcas, usuarios, roles y
+-- sucursales. Elimina stock y documentos operativos.
+--
+-- La versión formal y ejecutable está en:
+-- supabase/migrations/20260904000124_reiniciar_operacion_conservar_productos.sql
+--
+-- Debe ejecutarse únicamente con `supabase db push` para impedir aplicaciones
+-- accidentales o repetidas fuera del historial formal de migraciones.

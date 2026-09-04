@@ -10,7 +10,9 @@
 | Interfaz | **React 18 + Vite + TypeScript** | Vite compila rápido y TypeScript evita el 80% de los errores tontos cuando el proyecto crece |
 | App móvil | **vite-plugin-pwa (Workbox)** | Se instala en el celular como app real, sin tiendas ni Play Store |
 | Base de datos | **PostgreSQL (Supabase)** | Transacciones reales: o se registra la venta completa o no se registra nada |
-| Backend | **PostgREST + funciones RPC de Supabase** | La API se genera sola desde el esquema. No hay servidor propio que mantener |
+| Backend | **PostgREST + funciones RPC de Supabase** | Stock, permisos e idempotencia viven junto a PostgreSQL |
+| Archivos | **Supabase Storage** | Bucket de productos protegido por políticas ligadas a los roles existentes |
+| Datos offline | **IndexedDB + Dexie** | Caché aislada por usuario y cola outbox reintentable |
 | Autenticación | **Supabase Auth** | Login por email, recuperación de contraseña y sesiones ya resueltos |
 | Permisos | **Row Level Security (RLS)** | El permiso vive en la base, no en el frontend |
 | Estilos | **Tailwind CSS** | Consistencia sin escribir CSS suelto |
@@ -18,9 +20,10 @@
 | Gráficos | **Recharts** | Ligero y suficiente para el dashboard |
 | Formularios | **React Hook Form + Zod** | Validación idéntica en cliente y servidor |
 | Código | **Git + GitHub** | Historial y respaldo |
-| Despliegue | **Cloudflare Pages** | Cada push a `main` publica solo, y permite uso comercial |
+| Despliegue web | **Cloudflare Workers Static Assets** | PWA y fallback de SPA en la red de Cloudflare |
 
-**Sin FastAPI.** Supabase ya entrega API REST, autenticación y permisos por fila. Agregar FastAPI encima significaría reescribir a mano lo que ya viene funcionando, más un servidor extra que mantener y pagar. Si algún día hace falta lógica que Postgres no cubra (facturación electrónica del SIN, integración con la web de ventas), se agrega un microservicio puntual sin tocar el resto.
+Supabase concentra autenticación, datos, funciones transaccionales e imágenes.
+No hay un servidor adicional que desplegar o mantener.
 
 ---
 
@@ -131,12 +134,12 @@ niveler/
 | # | Módulo | Tablas | Vista / RPC que usa |
 |---|---|---|---|
 | 1 | Dashboard | — | `v_dashboard_totales`, `v_stock_por_sucursal`, `v_stock_por_delivery`, `v_productos_bajo_stock`, `v_ventas_diarias` |
-| 2 | Productos | `productos`, `categorias`, `marcas` | CRUD directo + `v_kardex` |
+| 2 | Productos | `productos`, `categorias`, `marcas` | `rpc_crear_producto_con_stock` + `v_stock` + `v_kardex` |
 | 3 | Sucursales | `sucursales`, `ubicaciones` | CRUD directo |
 | 4 | Inventario | `inventario` | `v_stock` (lectura) · `rpc_ajustar_stock` |
 | 5 | Movimientos | `movimientos`, `movimientos_detalle` | `rpc_registrar_movimiento` · `v_kardex` |
 | 6 | Deliveries | `deliveries` | `v_stock_por_delivery`, `v_delivery_rendicion` |
-| 7 | Ventas | `ventas`, `ventas_detalle`, `clientes` | `rpc_registrar_venta` |
+| 7 | Ventas | `ventas`, `ventas_detalle`, `clientes`, `cliente_pedidos` | outbox + `rpc_registrar_venta_con_pedido` |
 | 8 | Transferencias | `transferencias`, `transferencias_detalle` | `rpc_crear_` / `rpc_enviar_` / `rpc_recibir_transferencia` |
 | 9 | Encomiendas | `encomiendas` | `rpc_crear_` / `rpc_despachar_` / `rpc_entregar_` / `rpc_anular_encomienda` |
 | 10 | Usuarios y roles | `usuarios`, `roles` | CRUD + RLS |
@@ -179,8 +182,8 @@ Los niveles numéricos son 100, 80, 60, 40, 30 y 10. Quien solo debe **mirar** e
 **Base de datos**
 
 1. Crear el proyecto en [supabase.com](https://supabase.com) — región **South America (São Paulo)**, la más cercana a Bolivia.
-2. SQL Editor → ejecutar `db/01_schema.sql` a `db/06_migracion_productos.sql` en orden, y después `07_storage.sql` y `08_grants.sql`.
-3. Subir las imágenes al bucket con `node scripts/subir-imagenes.mjs`.
+2. Aplicar en orden las migraciones de `supabase/migrations/` hasta la versión 20.
+3. Verificar el bucket de imágenes como indica `ALMACENAMIENTO.md`.
 4. Authentication → Users → crear el usuario admin y activarlo con el `update` que está al final de `05_seed.sql`.
 
 Los dos últimos archivos no son opcionales: sin los grants de `08`, un usuario logueado recibe `permission denied` aunque las políticas RLS lo autoricen, y sin `security_invoker` las vistas le muestran a cualquiera el stock de las siete ciudades.
@@ -206,7 +209,9 @@ npx supabase gen types typescript --project-id TU_ID > src/types/database.ts
 npm run build
 ```
 
-Subir a GitHub, conectar el repositorio en Cloudflare Pages y agregar ahí las dos variables `VITE_`. Cada push a `main` publica solo. Desde el celular, al abrirla en Chrome aparece "Agregar a la pantalla de inicio" y queda instalada como app.
+Aplicar primero las migraciones, configurar `VITE_SUPABASE_URL` y
+`VITE_SUPABASE_ANON_KEY`, y recién entonces publicar los assets con Wrangler.
+Desde el celular queda instalable como PWA.
 
 ---
 
@@ -222,6 +227,7 @@ Subir a GitHub, conectar el repositorio en Cloudflare Pages y agregar ahí las d
 | 6 | Encomiendas | Se rastrean bultos para clientes y entre deliveries |
 | 7 | Dashboard + reportes | El gerente ve todo desde el celular |
 | 8 | Usuarios, auditoría, exportar Excel | Sistema cerrado |
+| 9 | Offline | Consulta local y operaciones idempotentes tolerantes a cortes |
 
 **Sugerencia fuerte:** al terminar la fase 2, poner una sola sucursal a trabajar en paralelo con el Excel durante dos semanas. Los errores de modelado aparecen ahí, cuando corregirlos cuesta horas y no meses.
 
@@ -246,4 +252,5 @@ Los dos productos pendientes de conteo físico (aspiradora en La Paz, foco venti
 
 ## 10. Almacenamiento e infraestructura
 
-Ver **`ALMACENAMIENTO.md`**: cuánto ocupan los datos frente a las imágenes, cómo comprimir a WebP, cuántos productos caben en el plan gratuito, qué servidor se usa y cómo configurar respaldos gratuitos.
+Ver **`ALMACENAMIENTO.md`**: compresión, políticas del bucket, variables y
+verificación manual de imágenes.

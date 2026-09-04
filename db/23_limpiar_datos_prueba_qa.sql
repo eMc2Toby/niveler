@@ -1,0 +1,6 @@
+-- La migración formal y ejecutable está en:
+-- supabase/migrations/20260903000123_limpiar_datos_prueba_qa.sql
+--
+-- Este alias mantiene la numeración histórica de db/ sin duplicar una rutina
+-- destructiva. La limpieza QA sólo debe ejecutarse mediante `supabase db push`,
+-- que registra su aplicación una única vez.
