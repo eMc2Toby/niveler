@@ -1,8 +1,21 @@
 {
+  "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "niveler",
-  "compatibility_date": "2026-08-23",
+  "main": "./src/worker.ts",
+  "compatibility_date": "2026-09-04",
+  "compatibility_flags": ["nodejs_compat"],
   "assets": {
     "directory": "./dist",
-    "not_found_handling": "single-page-application"
+    "not_found_handling": "single-page-application",
+    "binding": "ASSETS",
+    "run_worker_first": [
+      "/*",
+      "!/assets/*",
+      "!/icons/*",
+      "!/favicon.ico",
+      "!/manifest.webmanifest",
+      "!/sw.js",
+      "!/workbox-*"
+    ]
   }
 }
