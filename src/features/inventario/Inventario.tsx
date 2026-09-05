@@ -11,7 +11,6 @@ import { usePermisos } from '@/hooks/useAuth'
 import { api, suscribirInventario } from '@/lib/supabase'
 import { numero, fechaHora } from '@/lib/formato'
 import { mensajeError, normalizar } from '@/lib/utils'
-import { avisarSiPendiente } from '@/lib/offline/ui'
 
 export default function Inventario() {
   const { ajustarStock } = usePermisos()
@@ -246,7 +245,6 @@ function ModalConteo({ fila, onCerrar }: { fila: any; onCerrar: () => void }) {
     mutationFn: () =>
       api.ajustarStock(fila.producto_id, fila.ubicacion_id, Number(contada), motivo.trim()),
     onSuccess: (r: any) => {
-      if (avisarSiPendiente(r)) { onCerrar(); return }
       qc.invalidateQueries({ queryKey: ['stock'] })
       qc.invalidateQueries({ queryKey: ['stock-ubicacion'] })
       qc.invalidateQueries({ queryKey: ['producto-stock'] })

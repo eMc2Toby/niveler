@@ -11,7 +11,6 @@ import { useAuth, usePermisos } from '@/hooks/useAuth'
 import { api } from '@/lib/supabase'
 import { fechaHora, numero } from '@/lib/formato'
 import { mensajeError } from '@/lib/utils'
-import { avisarSiPendiente } from '@/lib/offline/ui'
 
 export default function Ventas() {
   const { anularVentas, vender } = usePermisos()
@@ -22,8 +21,7 @@ export default function Ventas() {
 
   const entregar = useMutation({
     mutationFn: (id: string) => api.entregarVenta(id),
-    onSuccess: (resultado) => {
-      if (avisarSiPendiente(resultado)) return
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['ventas'] })
       qc.invalidateQueries({ queryKey: ['stock'] })
       qc.invalidateQueries({ queryKey: ['stock-ubicacion'] })
@@ -243,7 +241,6 @@ function FormularioVenta({ onCerrar }: { onCerrar: () => void }) {
         observaciones: observaciones.trim() || undefined,
       }),
     onSuccess: (r: any) => {
-      if (avisarSiPendiente(r)) { onCerrar(); return }
       qc.invalidateQueries({ queryKey: ['ventas'] })
       qc.invalidateQueries({ queryKey: ['stock'] })
       qc.invalidateQueries({ queryKey: ['stock-ubicacion'] })
@@ -438,8 +435,7 @@ function ModalAnularVenta({ venta, onCerrar }: { venta: any; onCerrar: () => voi
 
   const anular = useMutation({
     mutationFn: () => api.anularVenta(venta.id, motivoLimpio),
-    onSuccess: (resultado) => {
-      if (avisarSiPendiente(resultado)) { onCerrar(); return }
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['ventas'] })
       qc.invalidateQueries({ queryKey: ['stock'] })
       qc.invalidateQueries({ queryKey: ['stock-ubicacion'] })

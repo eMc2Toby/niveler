@@ -1,8 +1,6 @@
 import type { Database } from '@/types/database'
 import type { ProductoExcel } from '@/lib/excel'
 import { supabase } from '@/lib/clienteSupabase'
-import { conCacheOffline } from '@/lib/offline/cache'
-import { ejecutarOEncolar } from '@/lib/offline/outbox'
 
 export { supabase }
 
@@ -114,51 +112,47 @@ export const api = {
   // ------------------------------------------------------------- catálogo
 
   async productos() {
-    return conCacheOffline('productos', async () => {
-      const [catalogo, existencias] = await Promise.all([
-        supabase
-          .from('productos')
-          .select('*, categoria:categorias ( id, nombre ), marca:marcas ( id, nombre )')
-          .order('sku'),
-        supabase
-          .from('v_stock')
-          .select('producto_id, cantidad, cantidad_reservada, cantidad_disponible'),
-      ])
-      if (catalogo.error) throw catalogo.error
-      if (existencias.error) throw existencias.error
+    const [catalogo, existencias] = await Promise.all([
+      supabase
+        .from('productos')
+        .select('*, categoria:categorias ( id, nombre ), marca:marcas ( id, nombre )')
+        .order('sku'),
+      supabase
+        .from('v_stock')
+        .select('producto_id, cantidad, cantidad_reservada, cantidad_disponible'),
+    ])
+    if (catalogo.error) throw catalogo.error
+    if (existencias.error) throw existencias.error
 
-      const porProducto = new Map<string, { total: number; reservado: number; disponible: number }>()
-      for (const fila of existencias.data ?? []) {
-        if (!fila.producto_id) continue
-        const actual = porProducto.get(fila.producto_id) ?? { total: 0, reservado: 0, disponible: 0 }
-        actual.total += Number(fila.cantidad)
-        actual.reservado += Number(fila.cantidad_reservada)
-        actual.disponible += Number(fila.cantidad_disponible)
-        porProducto.set(fila.producto_id, actual)
+    const porProducto = new Map<string, { total: number; reservado: number; disponible: number }>()
+    for (const fila of existencias.data ?? []) {
+      if (!fila.producto_id) continue
+      const actual = porProducto.get(fila.producto_id) ?? { total: 0, reservado: 0, disponible: 0 }
+      actual.total += Number(fila.cantidad)
+      actual.reservado += Number(fila.cantidad_reservada)
+      actual.disponible += Number(fila.cantidad_disponible)
+      porProducto.set(fila.producto_id, actual)
+    }
+
+    return (catalogo.data ?? []).map((producto) => {
+      const saldo = porProducto.get(producto.id) ?? { total: 0, reservado: 0, disponible: 0 }
+      return {
+        ...producto,
+        stock_total: saldo.total,
+        stock_reservado: saldo.reservado,
+        stock_disponible: saldo.disponible,
       }
-
-      return (catalogo.data ?? []).map((producto) => {
-        const saldo = porProducto.get(producto.id) ?? { total: 0, reservado: 0, disponible: 0 }
-        return {
-          ...producto,
-          stock_total: saldo.total,
-          stock_reservado: saldo.reservado,
-          stock_disponible: saldo.disponible,
-        }
-      })
     })
   },
 
   async producto(id: string) {
-    return conCacheOffline(`producto:${id}`, async () => {
-      const { data, error } = await supabase
-        .from('productos')
-        .select('*, categoria:categorias ( id, nombre ), marca:marcas ( id, nombre )')
-        .eq('id', id)
-        .single()
-      if (error) throw error
-      return data
-    })
+    const { data, error } = await supabase
+      .from('productos')
+      .select('*, categoria:categorias ( id, nombre ), marca:marcas ( id, nombre )')
+      .eq('id', id)
+      .single()
+    if (error) throw error
+    return data
   },
 
   async crearProducto(p: ProductoFormulario) {
@@ -213,82 +207,68 @@ export const api = {
 
   /** Stock del producto en todas las ubicaciones donde queda algo. */
   async stockDeProducto(productoId: string) {
-    return conCacheOffline(`stock-producto:${productoId}`, async () => {
-      const { data, error } = await supabase
-        .from('v_stock')
-        .select('*')
-        .eq('producto_id', productoId)
-        .gt('cantidad', 0)
-        .order('ubicacion')
-      if (error) throw error
-      return data
-    })
+    const { data, error } = await supabase
+      .from('v_stock')
+      .select('*')
+      .eq('producto_id', productoId)
+      .gt('cantidad', 0)
+      .order('ubicacion')
+    if (error) throw error
+    return data
   },
 
   async categorias() {
-    return conCacheOffline('categorias', async () => {
-      const { data, error } = await supabase
-        .from('categorias')
-        .select('id, nombre')
-        .eq('activo', true)
-        .order('orden')
-      if (error) throw error
-      return data
-    })
+    const { data, error } = await supabase
+      .from('categorias')
+      .select('id, nombre')
+      .eq('activo', true)
+      .order('orden')
+    if (error) throw error
+    return data
   },
 
   async marcas() {
-    return conCacheOffline('marcas', async () => {
-      const { data, error } = await supabase
-        .from('marcas')
-        .select('id, nombre')
-        .eq('activo', true)
-        .order('nombre')
-      if (error) throw error
-      return data
-    })
+    const { data, error } = await supabase
+      .from('marcas')
+      .select('id, nombre')
+      .eq('activo', true)
+      .order('nombre')
+    if (error) throw error
+    return data
   },
 
   // ----------------------------------------------------------- dashboard
 
   async dashboard() {
-    return conCacheOffline('dashboard', async () => {
-      const { data, error } = await supabase.from('v_dashboard_totales').select('*').single()
-      if (error) throw error
-      return data
-    })
+    const { data, error } = await supabase.from('v_dashboard_totales').select('*').single()
+    if (error) throw error
+    return data
   },
 
   async stockPorSucursal() {
-    return conCacheOffline('stock-sucursales', async () => {
-      const { data, error } = await supabase.from('v_stock_por_sucursal').select('*')
-      if (error) throw error
-      return data
-    })
+    const { data, error } = await supabase.from('v_stock_por_sucursal').select('*')
+    if (error) throw error
+    return data
   },
 
   async bajoStock() {
-    return conCacheOffline('bajo-stock', async () => {
-      const { data, error } = await supabase
-        .from('v_productos_bajo_stock')
-        .select('*')
-        .order('faltante', { ascending: false })
-      if (error) throw error
-      return data
-    })
+    const { data, error } = await supabase
+      .from('v_productos_bajo_stock')
+      .select('*')
+      .order('faltante', { ascending: false })
+    if (error) throw error
+    return data
   },
 
   async stockDeUbicacion(ubicacionId: string) {
-    return conCacheOffline(`stock-ubicacion:${ubicacionId}`, async () => {
-      const { data, error } = await supabase
-        .from('v_stock')
-        .select('*')
-        .eq('ubicacion_id', ubicacionId)
-        .gt('cantidad', 0)
-        .order('producto')
-      if (error) throw error
-      return data
-    })
+    const { data, error } = await supabase
+      .from('v_stock')
+      .select('*')
+      .eq('ubicacion_id', ubicacionId)
+      .gt('cantidad', 0)
+      .order('producto')
+    if (error) throw error
+    return data
   },
 
   async kardex(productoId: string) {
@@ -315,13 +295,15 @@ export const api = {
     items: ItemMovimiento[]
     observaciones?: string
   }) {
-    return ejecutarOEncolar('REGISTRAR_MOVIMIENTO', {
-      tipo: args.tipo,
-      origen: args.origen,
-      destino: args.destino,
-      items: args.items,
-      observaciones: args.observaciones ?? null,
+    const { data, error } = await supabase.rpc('rpc_registrar_movimiento', {
+      p_tipo: args.tipo,
+      p_ubicacion_origen_id: args.origen,
+      p_ubicacion_destino_id: args.destino,
+      p_items: args.items,
+      p_observaciones: args.observaciones,
     })
+    if (error) throw new Error(traducir(error.message))
+    return data
   },
 
   async registrarVenta(args: {
@@ -332,24 +314,35 @@ export const api = {
     estado?: 'ENTREGADA' | 'PENDIENTE'
     observaciones?: string
   }) {
-    return ejecutarOEncolar('REGISTRAR_VENTA', {
-      ubicacion_id: args.ubicacionId,
-      items: args.items,
-      cliente_id: args.clienteId ?? null,
-      numero_pedido: args.numeroPedido ?? null,
-      estado: args.estado ?? 'ENTREGADA',
-      observaciones: args.observaciones ?? null,
+    const { data, error } = await supabase.rpc('rpc_registrar_venta_con_pedido', {
+      p_ubicacion_id: args.ubicacionId,
+      p_items: args.items,
+      p_cliente_id: args.clienteId,
+      p_numero_pedido: args.numeroPedido,
+      p_estado: args.estado ?? 'ENTREGADA',
+      p_observaciones: args.observaciones,
     })
+    if (error) throw new Error(traducir(error.message))
+    return data
   },
 
   async crearTransferencia(origen: string, destino: string, items: ItemMovimiento[], obs?: string) {
-    return ejecutarOEncolar('CREAR_TRANSFERENCIA', {
-      origen, destino, items, observaciones: obs ?? null,
+    const { data, error } = await supabase.rpc('rpc_crear_transferencia', {
+      p_origen_id: origen,
+      p_destino_id: destino,
+      p_items: items,
+      p_observaciones: obs,
     })
+    if (error) throw new Error(traducir(error.message))
+    return data
   },
 
   async enviarTransferencia(id: string) {
-    return ejecutarOEncolar('ENVIAR_TRANSFERENCIA', { id })
+    const { data, error } = await supabase.rpc('rpc_enviar_transferencia', {
+      p_transferencia_id: id,
+    })
+    if (error) throw new Error(traducir(error.message))
+    return data
   },
 
   /** Importación atómica: validación, resolución de catálogos y upsert viven en PostgreSQL. */
@@ -362,44 +355,52 @@ export const api = {
   },
 
   async anularTransferencia(id: string, motivo: string) {
-    return ejecutarOEncolar('ANULAR_TRANSFERENCIA', { id, motivo })
+    const { data, error } = await supabase.rpc('rpc_anular_transferencia', {
+      p_transferencia_id: id,
+      p_motivo: motivo,
+    })
+    if (error) throw new Error(traducir(error.message))
+    return data
   },
 
   async recibirTransferencia(id: string, recibidos?: { detalle_id: string; cantidad_recibida: number }[]) {
-    return ejecutarOEncolar('RECIBIR_TRANSFERENCIA', { id, recibidos: recibidos ?? null })
+    const { data, error } = await supabase.rpc('rpc_recibir_transferencia', {
+      p_transferencia_id: id,
+      p_recibidos: recibidos,
+    })
+    if (error) throw new Error(traducir(error.message))
+    return data
   },
 
   async ajustarStock(productoId: string, ubicacionId: string, contada: number, motivo: string) {
-    return ejecutarOEncolar('AJUSTAR_STOCK', {
-      producto_id: productoId,
-      ubicacion_id: ubicacionId,
-      cantidad_contada: contada,
-      motivo,
+    const { data, error } = await supabase.rpc('rpc_ajustar_stock', {
+      p_producto_id: productoId,
+      p_ubicacion_id: ubicacionId,
+      p_cantidad_contada: contada,
+      p_motivo: motivo,
     })
+    if (error) throw new Error(traducir(error.message))
+    return data
   },
 
   // --------------------------------------------------------- ubicaciones
 
   /** Todas las ubicaciones activas, para los selectores de origen y destino. */
   async ubicaciones() {
-    return conCacheOffline('ubicaciones', async () => {
-      const { data, error } = await supabase
-        .from('ubicaciones')
-        .select('id, codigo, nombre, tipo, sucursal_id, delivery_id')
-        .eq('activo', true)
-        .order('tipo')
-        .order('nombre')
-      if (error) throw error
-      return data
-    })
+    const { data, error } = await supabase
+      .from('ubicaciones')
+      .select('id, codigo, nombre, tipo, sucursal_id, delivery_id')
+      .eq('activo', true)
+      .order('tipo')
+      .order('nombre')
+    if (error) throw error
+    return data
   },
 
   async sucursales() {
-    return conCacheOffline('sucursales', async () => {
-      const { data, error } = await supabase.from('sucursales').select('*').order('ciudad')
-      if (error) throw error
-      return data
-    })
+    const { data, error } = await supabase.from('sucursales').select('*').order('ciudad')
+    if (error) throw error
+    return data
   },
 
   async guardarSucursal(id: string | null, datos: SucursalInsert) {
@@ -414,42 +415,42 @@ export const api = {
   // ---------------------------------------------------------- inventario
 
   async stock() {
-    return conCacheOffline('stock', async () => {
-      const { data, error } = await supabase
-        .from('v_stock')
-        .select('*')
-        .gt('cantidad', 0)
-        .order('producto')
-      if (error) throw error
-      return data
-    })
+    const { data, error } = await supabase
+      .from('v_stock')
+      .select('*')
+      .gt('cantidad', 0)
+      .order('producto')
+    if (error) throw error
+    return data
   },
 
   // --------------------------------------------------------- movimientos
 
   async movimientos(limite = 100) {
-    return conCacheOffline(`movimientos:${limite}`, async () => {
-      const { data, error } = await supabase.from('movimientos').select(`
+    const { data, error } = await supabase.from('movimientos').select(`
         id, codigo, tipo, estado, fecha, observaciones, referencia_tabla, referencia_id,
         origen:ubicaciones!movimientos_ubicacion_origen_id_fkey ( nombre, tipo ),
         destino:ubicaciones!movimientos_ubicacion_destino_id_fkey ( nombre, tipo ),
         usuario:usuarios ( nombre_completo ),
         detalle:movimientos_detalle ( cantidad, producto:productos ( sku, nombre ) )
         `).order('fecha', { ascending: false }).limit(limite)
-      if (error) throw error
-      return data
-    })
+    if (error) throw error
+    return data
   },
 
   async anularMovimiento(id: string, motivo: string) {
-    return ejecutarOEncolar('ANULAR_MOVIMIENTO', { id, motivo })
+    const { data, error } = await supabase.rpc('sp_anular_movimiento', {
+      p_movimiento_id: id,
+      p_motivo: motivo,
+    })
+    if (error) throw new Error(traducir(error.message))
+    return data
   },
 
   // ------------------------------------------------------ transferencias
 
   async transferencias() {
-    return conCacheOffline('transferencias', async () => {
-      const { data, error } = await supabase.from('transferencias').select(`
+    const { data, error } = await supabase.from('transferencias').select(`
         id, codigo, estado, fecha_solicitud, fecha_envio, fecha_recepcion, observaciones,
         origen:ubicaciones!transferencias_ubicacion_origen_id_fkey ( id, nombre ),
         destino:ubicaciones!transferencias_ubicacion_destino_id_fkey ( id, nombre ),
@@ -457,9 +458,8 @@ export const api = {
           id, cantidad_enviada, cantidad_recibida, producto:productos ( sku, nombre )
         )
         `).order('fecha_solicitud', { ascending: false }).limit(100)
-      if (error) throw error
-      return data
-    })
+    if (error) throw error
+    return data
   },
 
   // --------------------------------------------------------- encomiendas
@@ -470,8 +470,7 @@ export const api = {
    * el flujo transaccional de Transferencias.
    */
   async encomiendas(limite = 150) {
-    return conCacheOffline(`encomiendas:${limite}`, async () => {
-      const { data, error } = await supabase.from('encomiendas').select(`
+    const { data, error } = await supabase.from('encomiendas').select(`
         id, codigo, tipo, estado, descripcion, cantidad_bultos, peso_kg,
         sucursal_origen_id, usuario_crea_id,
         ciudad_destino, direccion_entrega, observaciones, motivo_anulacion,
@@ -487,43 +486,56 @@ export const api = {
         ),
         usuario_crea:usuarios!encomiendas_usuario_crea_id_fkey ( nombre_completo )
         `).order('fecha_registro', { ascending: false }).limit(limite)
-      if (error) throw error
-      return data
-    })
+    if (error) throw error
+    return data
   },
 
   async crearEncomienda(args: NuevaEncomienda) {
-    return ejecutarOEncolar('CREAR_ENCOMIENDA', {
-      tipo: args.tipo,
-      delivery_origen_id: args.deliveryOrigenId,
-      descripcion: args.descripcion,
-      cliente_id: args.clienteId ?? null,
-      delivery_destino_id: args.deliveryDestinoId ?? null,
-      cantidad_bultos: args.cantidadBultos,
-      peso_kg: args.pesoKg ?? null,
-      ciudad_destino: args.ciudadDestino ?? null,
-      direccion_entrega: args.direccionEntrega ?? null,
-      observaciones: args.observaciones ?? null,
+    const { data, error } = await supabase.rpc('rpc_crear_encomienda', {
+      p_tipo: args.tipo,
+      p_delivery_origen_id: args.deliveryOrigenId,
+      p_descripcion: args.descripcion,
+      p_cliente_id: args.clienteId,
+      p_delivery_destino_id: args.deliveryDestinoId,
+      p_cantidad_bultos: args.cantidadBultos,
+      p_peso_kg: args.pesoKg,
+      p_ciudad_destino: args.ciudadDestino,
+      p_direccion_entrega: args.direccionEntrega,
+      p_observaciones: args.observaciones,
     })
+    if (error) throw new Error(traducir(error.message))
+    return data
   },
 
   async despacharEncomienda(id: string) {
-    return ejecutarOEncolar('DESPACHAR_ENCOMIENDA', { id })
+    const { data, error } = await supabase.rpc('rpc_despachar_encomienda', {
+      p_encomienda_id: id,
+    })
+    if (error) throw new Error(traducir(error.message))
+    return data
   },
 
   async entregarEncomienda(id: string) {
-    return ejecutarOEncolar('ENTREGAR_ENCOMIENDA', { id })
+    const { data, error } = await supabase.rpc('rpc_entregar_encomienda', {
+      p_encomienda_id: id,
+    })
+    if (error) throw new Error(traducir(error.message))
+    return data
   },
 
   async anularEncomienda(id: string, motivo: string) {
-    return ejecutarOEncolar('ANULAR_ENCOMIENDA', { id, motivo })
+    const { data, error } = await supabase.rpc('rpc_anular_encomienda', {
+      p_encomienda_id: id,
+      p_motivo: motivo,
+    })
+    if (error) throw new Error(traducir(error.message))
+    return data
   },
 
   // --------------------------------------------------------------ventas
 
   async ventas(limite = 100) {
-    return conCacheOffline(`ventas:${limite}`, async () => {
-      const { data, error } = await supabase.from('ventas').select(`
+    const { data, error } = await supabase.from('ventas').select(`
         id, codigo, fecha, estado, observaciones,
         cliente:clientes ( id, nombre ),
         pedido:cliente_pedidos ( id, numero ),
@@ -532,14 +544,15 @@ export const api = {
         usuario:usuarios ( nombre_completo ),
         detalle:ventas_detalle ( cantidad, producto:productos ( sku, nombre ) )
         `).order('fecha', { ascending: false }).limit(limite)
-      if (error) throw error
-      return data
-    })
+    if (error) throw error
+    return data
   },
 
   /** Convierte una reserva pendiente en una salida real de stock. */
   async entregarVenta(ventaId: string) {
-    return ejecutarOEncolar('ENTREGAR_VENTA', { id: ventaId })
+    const { data, error } = await supabase.rpc('rpc_entregar_venta', { p_venta_id: ventaId })
+    if (error) throw new Error(traducir(error.message))
+    return data
   },
 
   /**
@@ -547,20 +560,23 @@ export const api = {
    * Si estaba pendiente libera la reserva; si fue entregada revierte la salida.
    */
   async anularVenta(ventaId: string, motivo: string) {
-    return ejecutarOEncolar('ANULAR_VENTA', { id: ventaId, motivo })
+    const { data, error } = await supabase.rpc('rpc_anular_venta', {
+      p_venta_id: ventaId,
+      p_motivo: motivo,
+    })
+    if (error) throw new Error(traducir(error.message))
+    return data
   },
 
   // ------------------------------------------------------------ clientes
 
   async clientes() {
-    return conCacheOffline('clientes', async () => {
-      const { data, error } = await supabase
-        .from('clientes')
-        .select('*, pedidos:cliente_pedidos ( id, numero, activo, created_at )')
-        .order('nombre')
-      if (error) throw error
-      return data
-    })
+    const { data, error } = await supabase
+      .from('clientes')
+      .select('*, pedidos:cliente_pedidos ( id, numero, activo, created_at )')
+      .order('nombre')
+    if (error) throw error
+    return data
   },
 
   async guardarCliente(id: string | null, datos: ClienteFormulario) {
@@ -582,14 +598,12 @@ export const api = {
   // ---------------------------------------------------------- deliveries
 
   async deliveries() {
-    return conCacheOffline('deliveries', async () => {
-      const { data, error } = await supabase
-        .from('deliveries')
-        .select('*, sucursal:sucursales ( nombre, ciudad ), usuario:usuarios ( nombre_completo, email )')
-        .order('nombre')
-      if (error) throw error
-      return data
-    })
+    const { data, error } = await supabase
+      .from('deliveries')
+      .select('*, sucursal:sucursales ( nombre, ciudad ), usuario:usuarios ( nombre_completo, email )')
+      .order('nombre')
+    if (error) throw error
+    return data
   },
 
   /** Cuentas con rol DELIVERY, para vincularlas con su ficha. */

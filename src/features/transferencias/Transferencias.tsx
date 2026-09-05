@@ -11,7 +11,6 @@ import { usePermisos } from '@/hooks/useAuth'
 import { api } from '@/lib/supabase'
 import { fecha, numero } from '@/lib/formato'
 import { mensajeError } from '@/lib/utils'
-import { avisarSiPendiente } from '@/lib/offline/ui'
 
 const TONO: Record<string, 'neutro' | 'verde' | 'ambar' | 'rojo'> = {
   BORRADOR: 'neutro',
@@ -33,8 +32,7 @@ export default function Transferencias() {
 
   const enviar = useMutation({
     mutationFn: (id: string) => api.enviarTransferencia(id),
-    onSuccess: (resultado) => {
-      if (avisarSiPendiente(resultado)) return
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['transferencias'] })
       qc.invalidateQueries({ queryKey: ['stock'] })
       qc.invalidateQueries({ queryKey: ['stock-ubicacion'] })
@@ -187,7 +185,6 @@ function FormularioTransferencia({ onCerrar }: { onCerrar: () => void }) {
         observaciones.trim() || undefined,
       ),
     onSuccess: (r: any) => {
-      if (avisarSiPendiente(r)) { onCerrar(); return }
       qc.invalidateQueries({ queryKey: ['transferencias'] })
       qc.invalidateQueries({ queryKey: ['stock'] })
       qc.invalidateQueries({ queryKey: ['stock-ubicacion'] })
@@ -326,8 +323,7 @@ function ModalAnularTransferencia({
     : motivoLimpio.length > 300 ? 'Máximo 300 caracteres' : undefined
   const anular = useMutation({
     mutationFn: () => api.anularTransferencia(transferencia.id, motivoLimpio),
-    onSuccess: (resultado) => {
-      if (avisarSiPendiente(resultado)) { onCerrar(); return }
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['transferencias'] })
       qc.invalidateQueries({ queryKey: ['stock'] })
       qc.invalidateQueries({ queryKey: ['stock-ubicacion'] })
@@ -394,7 +390,6 @@ function ModalRecepcion({ transferencia, onCerrar }: { transferencia: any; onCer
         })),
       ),
     onSuccess: (r: any) => {
-      if (avisarSiPendiente(r)) { onCerrar(); return }
       qc.invalidateQueries({ queryKey: ['transferencias'] })
       qc.invalidateQueries({ queryKey: ['stock'] })
       qc.invalidateQueries({ queryKey: ['stock-ubicacion'] })

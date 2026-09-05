@@ -13,7 +13,6 @@ import { useClientes, useDeliveries } from '@/hooks/useCatalogos'
 import {
   api, type EstadoEncomienda, type NuevaEncomienda, type TipoEncomienda,
 } from '@/lib/supabase'
-import { avisarSiPendiente } from '@/lib/offline/ui'
 import { fechaHora, numero } from '@/lib/formato'
 import { mensajeError, normalizar } from '@/lib/utils'
 
@@ -51,8 +50,7 @@ export default function Encomiendas() {
   const cambiarEstado = useMutation({
     mutationFn: ({ accion, id }: { accion: Accion; id: string }) =>
       accion === 'DESPACHAR' ? api.despacharEncomienda(id) : api.entregarEncomienda(id),
-    onSuccess: (resultado, variables) => {
-      if (avisarSiPendiente(resultado)) return
+    onSuccess: (_, variables) => {
       refrescar()
       toast.success(variables.accion === 'DESPACHAR' ? 'Encomienda despachada' : 'Entrega confirmada')
     },
@@ -347,8 +345,7 @@ function FormularioEncomienda({ onCerrar }: { onCerrar: () => void }) {
       }
       return api.crearEncomienda(datos)
     },
-    onSuccess: (resultado) => {
-      if (avisarSiPendiente(resultado)) { onCerrar(); return }
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['encomiendas'] })
       toast.success('Encomienda registrada')
       onCerrar()
@@ -531,8 +528,7 @@ function ModalAnulacion({
   const [motivo, setMotivo] = useState('')
   const anular = useMutation({
     mutationFn: () => api.anularEncomienda(encomienda.id, motivo.trim()),
-    onSuccess: (resultado) => {
-      if (avisarSiPendiente(resultado)) { onCerrar(); return }
+    onSuccess: () => {
       onCompletado()
       toast.success('Encomienda anulada')
       onCerrar()

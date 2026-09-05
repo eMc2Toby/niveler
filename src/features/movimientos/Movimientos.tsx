@@ -12,7 +12,6 @@ import { usePermisos } from '@/hooks/useAuth'
 import { api } from '@/lib/supabase'
 import { fechaHora, numero } from '@/lib/formato'
 import { mensajeError } from '@/lib/utils'
-import { avisarSiPendiente } from '@/lib/offline/ui'
 
 /**
  * Los cinco movimientos que se registran a mano. Los otros tres —venta,
@@ -175,7 +174,6 @@ function FormularioMovimiento({ onCerrar }: { onCerrar: () => void }) {
         observaciones: observaciones.trim() || undefined,
       }),
     onSuccess: (r: any) => {
-      if (avisarSiPendiente(r)) { onCerrar(); return }
       qc.invalidateQueries({ queryKey: ['movimientos'] })
       qc.invalidateQueries({ queryKey: ['stock'] })
       qc.invalidateQueries({ queryKey: ['stock-ubicacion'] })
@@ -264,8 +262,7 @@ function ModalAnular({ movimiento, onCerrar }: { movimiento: any; onCerrar: () =
 
   const anular = useMutation({
     mutationFn: () => api.anularMovimiento(movimiento.id, motivo),
-    onSuccess: (resultado) => {
-      if (avisarSiPendiente(resultado)) { onCerrar(); return }
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['movimientos'] })
       qc.invalidateQueries({ queryKey: ['stock'] })
       qc.invalidateQueries({ queryKey: ['stock-ubicacion'] })
