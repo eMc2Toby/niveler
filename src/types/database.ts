@@ -759,47 +759,6 @@ export type Database = {
           },
         ]
       }
-      operaciones_idempotentes: {
-        Row: {
-          clave: string
-          completed_at: string | null
-          created_at: string
-          id: number
-          payload_hash: string
-          resultado: Json | null
-          tipo: string
-          usuario_id: string
-        }
-        Insert: {
-          clave: string
-          completed_at?: string | null
-          created_at?: string
-          id?: never
-          payload_hash: string
-          resultado?: Json | null
-          tipo: string
-          usuario_id: string
-        }
-        Update: {
-          clave?: string
-          completed_at?: string | null
-          created_at?: string
-          id?: never
-          payload_hash?: string
-          resultado?: Json | null
-          tipo?: string
-          usuario_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "operaciones_idempotentes_usuario_id_fkey"
-            columns: ["usuario_id"]
-            isOneToOne: false
-            referencedRelation: "usuarios"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       productos: {
         Row: {
           activo: boolean
@@ -1851,10 +1810,6 @@ export type Database = {
       }
       rpc_despachar_encomienda: {
         Args: { p_encomienda_id: string }
-        Returns: Json
-      }
-      rpc_ejecutar_operacion_offline: {
-        Args: { p_clave: string; p_payload: Json; p_tipo: string }
         Returns: Json
       }
       rpc_entregar_encomienda: {

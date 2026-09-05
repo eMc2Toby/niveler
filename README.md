@@ -1,8 +1,8 @@
 # Niveler
 
-Sistema de inventario multi-sucursal (7 ciudades + deliveries), como PWA instalable.
-React 18 + Vite + TypeScript + Tailwind, Supabase (PostgreSQL, Auth y RLS),
-Supabase Storage para imágenes e IndexedDB/Dexie para trabajo offline.
+Sistema web de inventario multi-sucursal (7 ciudades + deliveries).
+React 18 + Vite + TypeScript + Tailwind y Supabase (PostgreSQL, Auth, RLS y
+Storage). La aplicación funciona exclusivamente con conexión a Internet.
 
 El diseño completo del modelo de datos y las decisiones detrás está en
 [ESTRUCTURA.md](ESTRUCTURA.md); la parte de imágenes, respaldos e
@@ -22,7 +22,7 @@ falla: no hay base contra la cual hablar.
 ## Preparar la base de datos
 
 1. Crear el proyecto en [supabase.com](https://supabase.com), región São Paulo.
-2. Aplicar en orden las migraciones de `supabase/migrations/` hasta la versión 24.
+2. Aplicar en orden las migraciones de `supabase/migrations/` hasta la versión 25.
 3. Verificar el bucket `productos` y sus políticas siguiendo
    [ALMACENAMIENTO.md](ALMACENAMIENTO.md).
 4. Authentication → Users → crear el usuario admin y activarlo con el `update`
@@ -62,7 +62,7 @@ de cada migración remota.
 |---|---|
 | `npm run dev` | Servidor de desarrollo en http://localhost:5173 |
 | `npm run build` | Verifica tipos y compila a `dist/` |
-| `npm run preview` | Sirve el build, útil para probar la PWA |
+| `npm run preview` | Sirve localmente el build de producción |
 | `npm run lint` | Revisa el código TypeScript/React y los scripts |
 | `npm test` | Ejecuta las pruebas unitarias y de contrato SQL |
 | `npm run test:e2e` | Ejecuta las pruebas públicas y, con credenciales, las de administrador |
@@ -91,7 +91,6 @@ de cada migración remota.
 | Usuarios | Aprobar cuentas, asignar rol y sucursal |
 | Reportes | Más vendidos, sin movimiento, salidas por día, stock completo, todo exportable a XLSX |
 | Auditoría | Consulta filtrable de cambios, detalle JSON y exportación XLSX para administradores |
-| Offline | Consulta local por usuario y cola idempotente para operaciones compatibles |
 | Imágenes | Compresión en el navegador y carga autenticada a Supabase Storage |
 
 Las pruebas E2E de administrador se habilitan con `E2E_ADMIN_EMAIL` y
@@ -127,11 +126,13 @@ propia app, en Usuarios → "Qué puede cada rol".
 ## Estado de la base de datos
 
 El proyecto vive en Supabase (`InvetarioNiveler`), región **São Paulo
-(sa-east-1)**. El repositorio contiene 24 migraciones SQL con políticas RLS, RPC de
-stock/ventas/transferencias/encomiendas, idempotencia offline,
-los 6 roles, las 7 sucursales, ubicaciones virtuales y el catálogo inicial.
+(sa-east-1)**. El repositorio contiene 25 migraciones SQL con políticas RLS, RPC de
+stock/ventas/transferencias/encomiendas, los 6 roles, las 7 sucursales,
+ubicaciones virtuales y el catálogo inicial.
 
-Las versiones 01–24 están aplicadas en Supabase. La versión 22 normaliza y valida las unidades de los
+Las versiones 01–24 están aplicadas en Supabase. La versión 25 retira la tabla y
+la RPC heredadas del modo sin conexión y debe aplicarse antes del próximo
+despliegue del frontend. La versión 22 normaliza y valida las unidades de los
 productos importados desde Excel, sin modificar stock ni imágenes.
 Antes de publicar cualquier frontend nuevo se comprueba el resultado con
 `supabase migration list --linked`.
@@ -146,7 +147,7 @@ la imagen WebP de prueba. Las secuencias de SKU y delivery quedaron ajustadas al
 
 El 04/09/2026 se reinició la operación para comenzar desde cero: se eliminaron
 inventario, movimientos, ventas, transferencias, encomiendas, clientes, pedidos,
-deliveries, reintentos offline y auditoría. Se conservaron sin cambios todos los
+deliveries, registros de reintentos heredados y auditoría. Se conservaron sin cambios todos los
 productos registrados y sus imágenes, además de categorías, marcas, usuarios,
 roles y sucursales necesarios para operar. Los correlativos operativos se
 reiniciaron desde 1.
@@ -169,6 +170,11 @@ versión de inmediato; los archivos con hash conservan su caché optimizada.
 El orden de una publicación que cambie RPC es obligatorio: aplicar y verificar
 primero la migración en Supabase, compilar/probar después y recién entonces
 desplegar con `npx wrangler deploy`.
+
+Niveler no registra service workers, no mantiene una base IndexedDB y no guarda
+operaciones para enviarlas después. Si se pierde la conexión, la operación falla y
+debe repetirse al recuperarla. La primera carga de esta versión elimina los datos
+y service workers que pudiera haber dejado una versión anterior.
 
 Para una instalación nueva, la cuenta administradora inicial se crea así:
 

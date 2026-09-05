@@ -9,14 +9,13 @@ Storage. PostgreSQL conserva únicamente la ruta en `productos.imagen_url`.
    supere 15 MB.
 2. La imagen se reduce a un máximo de 1200 px y 500 KiB antes de enviarse.
 3. El cliente autenticado la sube al bucket con un nombre nuevo que incluye una
-   marca de tiempo. Así la PWA no reutiliza una versión anterior en caché.
+   marca de tiempo. Así el navegador no reutiliza una versión anterior.
 4. La ruta se guarda junto al producto.
 5. Después de confirmar el cambio se elimina la imagen reemplazada.
 
 La política `productos_escritura` de `db/07_storage.sql` exige nivel 60 o
-superior. La lectura es pública para que las fotos puedan almacenarse en la
-caché offline de la PWA. `db/11_borrar_imagenes.sql` aplica el mismo nivel al
-borrado.
+superior. La lectura es pública para que el catálogo pueda mostrar las fotos.
+`db/11_borrar_imagenes.sql` aplica el mismo nivel al borrado.
 
 ## Variables
 
@@ -37,8 +36,8 @@ La clave `service_role` no pertenece al frontend y nunca debe llevar el prefijo
 3. Cambiar la foto y verificar que aparezca inmediatamente.
 4. Quitarla y confirmar que el producto quede sin imagen.
 5. Probar con un rol inferior a nivel 60 y confirmar que la carga sea rechazada.
-6. Instalar la PWA, abrir previamente un producto con foto y verificar que la
-   imagen siga visible sin conexión.
+6. Desconectar la red y confirmar que no se guarden cambios pendientes; volver
+   a conectar y repetir la operación correctamente.
 
 Para una carga masiva inicial se conserva `scripts/subir-imagenes.mjs`. Las
 imágenes también pueden prepararse previamente con

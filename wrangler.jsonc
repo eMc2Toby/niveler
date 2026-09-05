@@ -12,10 +12,7 @@
       "/*",
       "!/assets/*",
       "!/icons/*",
-      "!/favicon.ico",
-      "!/manifest.webmanifest",
-      "!/sw.js",
-      "!/workbox-*"
+      "!/favicon.ico"
     ]
   }
 }

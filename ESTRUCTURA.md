@@ -1,5 +1,5 @@
-# Niveler — Sistema de inventario multi-sucursal
-### Estructura completa del proyecto (PWA)
+# Niveler — Sistema web de inventario multi-sucursal
+### Estructura completa del proyecto
 
 ---
 
@@ -8,11 +8,11 @@
 | Capa | Tecnología | Por qué esta y no otra |
 |---|---|---|
 | Interfaz | **React 18 + Vite + TypeScript** | Vite compila rápido y TypeScript evita el 80% de los errores tontos cuando el proyecto crece |
-| App móvil | **vite-plugin-pwa (Workbox)** | Se instala en el celular como app real, sin tiendas ni Play Store |
+| Uso móvil | **Diseño web responsive** | Funciona desde el navegador del celular sin una aplicación adicional |
 | Base de datos | **PostgreSQL (Supabase)** | Transacciones reales: o se registra la venta completa o no se registra nada |
-| Backend | **PostgREST + funciones RPC de Supabase** | Stock, permisos e idempotencia viven junto a PostgreSQL |
+| Backend | **PostgREST + funciones RPC de Supabase** | Stock y permisos viven junto a PostgreSQL |
 | Archivos | **Supabase Storage** | Bucket de productos protegido por políticas ligadas a los roles existentes |
-| Datos offline | **IndexedDB + Dexie** | Caché aislada por usuario y cola outbox reintentable |
+| Conectividad | **Solo en línea** | Cada lectura y escritura se confirma directamente con Supabase |
 | Autenticación | **Supabase Auth** | Login por email, recuperación de contraseña y sesiones ya resueltos |
 | Permisos | **Row Level Security (RLS)** | El permiso vive en la base, no en el frontend |
 | Estilos | **Tailwind CSS** | Consistencia sin escribir CSS suelto |
@@ -20,7 +20,7 @@
 | Gráficos | **Recharts** | Ligero y suficiente para el dashboard |
 | Formularios | **React Hook Form + Zod** | Validación idéntica en cliente y servidor |
 | Código | **Git + GitHub** | Historial y respaldo |
-| Despliegue web | **Cloudflare Workers Static Assets** | PWA y fallback de SPA en la red de Cloudflare |
+| Despliegue web | **Cloudflare Workers Static Assets** | SPA con fallback de rutas en la red de Cloudflare |
 
 Supabase concentra autenticación, datos, funciones transaccionales e imágenes.
 No hay un servidor adicional que desplegar o mantener.
@@ -80,7 +80,7 @@ niveler/
 │   └── favicon.ico
 │
 ├── src/
-│   ├── main.tsx                 punto de entrada + registro del service worker
+│   ├── main.tsx                 punto de entrada de React
 │   ├── App.tsx                  rutas y layout
 │   │
 │   ├── lib/
@@ -98,7 +98,7 @@ niveler/
 │   │   ├── ui/                  Boton, Input, Modal, Tabla, Badge, Skeleton
 │   │   ├── layout/              Sidebar (PC), BottomNav (móvil), Header
 │   │   └── comunes/             SelectorProducto, SelectorUbicacion,
-│   │                            EstadoVacio, IndicadorOffline
+│   │                            EstadoVacio
 │   │
 │   ├── features/                ← una carpeta por módulo
 │   │   ├── auth/                Login, RecuperarPassword, RutaProtegida
@@ -120,7 +120,7 @@ niveler/
 │   └── styles/globals.css
 │
 ├── .env.example
-├── vite.config.ts               configuración PWA
+├── vite.config.ts               configuración de compilación
 ├── tailwind.config.js
 └── package.json
 ```
@@ -139,7 +139,7 @@ niveler/
 | 4 | Inventario | `inventario` | `v_stock` (lectura) · `rpc_ajustar_stock` |
 | 5 | Movimientos | `movimientos`, `movimientos_detalle` | `rpc_registrar_movimiento` · `v_kardex` |
 | 6 | Deliveries | `deliveries` | `v_stock_por_delivery`, `v_delivery_rendicion` |
-| 7 | Ventas | `ventas`, `ventas_detalle`, `clientes`, `cliente_pedidos` | outbox + `rpc_registrar_venta_con_pedido` |
+| 7 | Ventas | `ventas`, `ventas_detalle`, `clientes`, `cliente_pedidos` | `rpc_registrar_venta_con_pedido` |
 | 8 | Transferencias | `transferencias`, `transferencias_detalle` | `rpc_crear_` / `rpc_enviar_` / `rpc_recibir_transferencia` |
 | 9 | Encomiendas | `encomiendas` | `rpc_crear_` / `rpc_despachar_` / `rpc_entregar_` / `rpc_anular_encomienda` |
 | 10 | Usuarios y roles | `usuarios`, `roles` | CRUD + RLS |
@@ -182,7 +182,7 @@ Los niveles numéricos son 100, 80, 60, 40, 30 y 10. Quien solo debe **mirar** e
 **Base de datos**
 
 1. Crear el proyecto en [supabase.com](https://supabase.com) — región **South America (São Paulo)**, la más cercana a Bolivia.
-2. Aplicar en orden las migraciones de `supabase/migrations/` hasta la versión 20.
+2. Aplicar en orden las migraciones de `supabase/migrations/` hasta la versión 25.
 3. Verificar el bucket de imágenes como indica `ALMACENAMIENTO.md`.
 4. Authentication → Users → crear el usuario admin y activarlo con el `update` que está al final de `05_seed.sql`.
 
@@ -211,7 +211,7 @@ npm run build
 
 Aplicar primero las migraciones, configurar `VITE_SUPABASE_URL` y
 `VITE_SUPABASE_ANON_KEY`, y recién entonces publicar los assets con Wrangler.
-Desde el celular queda instalable como PWA.
+En computadora y celular se utiliza desde un navegador con conexión.
 
 ---
 
@@ -227,7 +227,7 @@ Desde el celular queda instalable como PWA.
 | 6 | Encomiendas | Se rastrean bultos para clientes y entre deliveries |
 | 7 | Dashboard + reportes | El gerente ve todo desde el celular |
 | 8 | Usuarios, auditoría, exportar Excel | Sistema cerrado |
-| 9 | Offline | Consulta local y operaciones idempotentes tolerantes a cortes |
+| 9 | Validación | Pruebas E2E autenticadas y verificación operativa |
 
 **Sugerencia fuerte:** al terminar la fase 2, poner una sola sucursal a trabajar en paralelo con el Excel durante dos semanas. Los errores de modelado aparecen ahí, cuando corregirlos cuesta horas y no meses.
 

@@ -1,23 +1,31 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { registerSW } from 'virtual:pwa-register'
 import App from './App'
 import './styles/globals.css'
 
-async function iniciar() {
-  // Versiones anteriores guardaban respuestas autenticadas de Supabase en
-  // Cache Storage. Se eliminan antes de montar React para que ninguna
-  // consulta inicial pueda reutilizar datos de una sesion anterior.
-  if ('caches' in window) await window.caches.delete('datos-api')
+/** Retira datos y workers que pudieron dejar instalados versiones anteriores. */
+function retirarModoSinConexionAnterior() {
+  if ('serviceWorker' in navigator) {
+    void navigator.serviceWorker
+      .getRegistrations()
+      .then((registros) => Promise.all(registros.map((registro) => registro.unregister())))
+      .catch(() => undefined)
+  }
 
-  // Cuando se publica una version nueva, se aplica sin intervencion manual.
-  registerSW({ immediate: true })
+  if ('caches' in window) {
+    void window.caches
+      .keys()
+      .then((nombres) => Promise.all(nombres.map((nombre) => window.caches.delete(nombre))))
+      .catch(() => undefined)
+  }
 
-  createRoot(document.getElementById('root')!).render(
-    <StrictMode>
-      <App />
-    </StrictMode>,
-  )
+  if ('indexedDB' in window) window.indexedDB.deleteDatabase('niveler-local')
 }
 
-void iniciar()
+retirarModoSinConexionAnterior()
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)

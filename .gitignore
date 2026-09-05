@@ -13,5 +13,6 @@ dev-dist
 playwright-report
 test-results
 coverage
+*.tsbuildinfo
 imagenes_productos_webp
 outputs/

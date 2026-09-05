@@ -1,4 +1,4 @@
-// Genera los íconos PNG de la PWA (192, 512 y maskable) sin dependencias.
+// Genera los íconos PNG de Niveler (192, 512 y maskable) sin dependencias.
 // Son provisionales: cuando exista el logo definitivo, se reemplazan los
 // archivos de public/icons/ y este script deja de hacer falta.
 import { deflateSync } from 'node:zlib'
