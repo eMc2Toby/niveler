@@ -1,4 +1,4 @@
-# Niveler — Sistema web de inventario multi-sucursal
+# Niveler — Sistema de inventario multi-sucursal
 ### Estructura completa del proyecto
 
 ---
@@ -8,11 +8,11 @@
 | Capa | Tecnología | Por qué esta y no otra |
 |---|---|---|
 | Interfaz | **React 18 + Vite + TypeScript** | Vite compila rápido y TypeScript evita el 80% de los errores tontos cuando el proyecto crece |
-| Uso móvil | **Diseño web responsive** | Funciona desde el navegador del celular sin una aplicación adicional |
+| App móvil | **vite-plugin-pwa (Workbox)** | Se instala con icono propio y se actualiza sin una tienda |
 | Base de datos | **PostgreSQL (Supabase)** | Transacciones reales: o se registra la venta completa o no se registra nada |
 | Backend | **PostgREST + funciones RPC de Supabase** | Stock y permisos viven junto a PostgreSQL |
 | Archivos | **Supabase Storage** | Bucket de productos protegido por políticas ligadas a los roles existentes |
-| Conectividad | **Solo en línea** | Cada lectura y escritura se confirma directamente con Supabase |
+| Conectividad | **Operación solo en línea** | Cada lectura y escritura se confirma directamente con Supabase; no existe cola local |
 | Autenticación | **Supabase Auth** | Login por email, recuperación de contraseña y sesiones ya resueltos |
 | Permisos | **Row Level Security (RLS)** | El permiso vive en la base, no en el frontend |
 | Estilos | **Tailwind CSS** | Consistencia sin escribir CSS suelto |
@@ -20,7 +20,7 @@
 | Gráficos | **Recharts** | Ligero y suficiente para el dashboard |
 | Formularios | **React Hook Form + Zod** | Validación idéntica en cliente y servidor |
 | Código | **Git + GitHub** | Historial y respaldo |
-| Despliegue web | **Cloudflare Workers Static Assets** | SPA con fallback de rutas en la red de Cloudflare |
+| Despliegue web | **Cloudflare Workers Static Assets** | PWA con fallback de rutas en la red de Cloudflare |
 
 Supabase concentra autenticación, datos, funciones transaccionales e imágenes.
 No hay un servidor adicional que desplegar o mantener.
@@ -80,7 +80,7 @@ niveler/
 │   └── favicon.ico
 │
 ├── src/
-│   ├── main.tsx                 punto de entrada de React
+│   ├── main.tsx                 punto de entrada + registro de la PWA
 │   ├── App.tsx                  rutas y layout
 │   │
 │   ├── lib/
@@ -120,7 +120,7 @@ niveler/
 │   └── styles/globals.css
 │
 ├── .env.example
-├── vite.config.ts               configuración de compilación
+├── vite.config.ts               compilación y manifiesto PWA
 ├── tailwind.config.js
 └── package.json
 ```
@@ -211,7 +211,8 @@ npm run build
 
 Aplicar primero las migraciones, configurar `VITE_SUPABASE_URL` y
 `VITE_SUPABASE_ANON_KEY`, y recién entonces publicar los assets con Wrangler.
-En computadora y celular se utiliza desde un navegador con conexión.
+En el celular puede instalarse como PWA, pero los datos y operaciones requieren
+conexión a Supabase.
 
 ---
 

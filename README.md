@@ -1,8 +1,8 @@
 # Niveler
 
-Sistema web de inventario multi-sucursal (7 ciudades + deliveries).
-React 18 + Vite + TypeScript + Tailwind y Supabase (PostgreSQL, Auth, RLS y
-Storage). La aplicación funciona exclusivamente con conexión a Internet.
+Sistema de inventario multi-sucursal (7 ciudades + deliveries), instalable como
+PWA. React 18 + Vite + TypeScript + Tailwind y Supabase (PostgreSQL, Auth, RLS y
+Storage). Las consultas y operaciones requieren conexión a Internet.
 
 El diseño completo del modelo de datos y las decisiones detrás está en
 [ESTRUCTURA.md](ESTRUCTURA.md); la parte de imágenes, respaldos e
@@ -62,7 +62,7 @@ de cada migración remota.
 |---|---|
 | `npm run dev` | Servidor de desarrollo en http://localhost:5173 |
 | `npm run build` | Verifica tipos y compila a `dist/` |
-| `npm run preview` | Sirve localmente el build de producción |
+| `npm run preview` | Sirve el build de producción, útil para probar la PWA |
 | `npm run lint` | Revisa el código TypeScript/React y los scripts |
 | `npm test` | Ejecuta las pruebas unitarias y de contrato SQL |
 | `npm run test:e2e` | Ejecuta las pruebas públicas y, con credenciales, las de administrador |
@@ -76,6 +76,7 @@ de cada migración remota.
 | Módulo | Qué hace |
 |---|---|
 | Auth y layout | Login, roles, sidebar en PC y barra inferior en móvil |
+| PWA | Instalación con icono propio y actualización automática; sin cola offline |
 | Dashboard | Totales, stock por ciudad, alertas de reposición, tiempo real |
 | Productos | Catálogo con SKU manual obligatorio y único, stock inicial por entrada auditada y saldos físico/reservado/disponible por ubicación |
 | Importación Excel | Plantilla XLSX, validación, previsualización e importación atómica del catálogo |
@@ -171,10 +172,11 @@ El orden de una publicación que cambie RPC es obligatorio: aplicar y verificar
 primero la migración en Supabase, compilar/probar después y recién entonces
 desplegar con `npx wrangler deploy`.
 
-Niveler no registra service workers, no mantiene una base IndexedDB y no guarda
-operaciones para enviarlas después. Si se pierde la conexión, la operación falla y
-debe repetirse al recuperarla. La primera carga de esta versión elimina los datos
-y service workers que pudiera haber dejado una versión anterior.
+Niveler registra un service worker solamente para instalar y actualizar el shell
+de la PWA. No mantiene datos empresariales en IndexedDB ni guarda operaciones
+para enviarlas después. Si se pierde la conexión, la operación falla y debe
+repetirse al recuperarla. La primera carga elimina los datos locales que pudiera
+haber dejado la sincronización anterior.
 
 Para una instalación nueva, la cuenta administradora inicial se crea así:
 

@@ -38,6 +38,7 @@ La clave `service_role` no pertenece al frontend y nunca debe llevar el prefijo
 5. Probar con un rol inferior a nivel 60 y confirmar que la carga sea rechazada.
 6. Desconectar la red y confirmar que no se guarden cambios pendientes; volver
    a conectar y repetir la operación correctamente.
+7. Instalar la PWA y confirmar que abre con el icono y el nombre de Niveler.
 
 Para una carga masiva inicial se conserva `scripts/subir-imagenes.mjs`. Las
 imágenes también pueden prepararse previamente con
