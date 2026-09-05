@@ -17,7 +17,6 @@ export default defineConfig({
           if (id.includes('@supabase/supabase-js') || id.includes('@tanstack/react-query')) {
             return 'datos'
           }
-          if (id.includes('dexie')) return 'offline'
           if (
             id.includes('react-dom') || id.includes('react-router')
             || id.includes('react-hook-form') || id.includes('/react/')
