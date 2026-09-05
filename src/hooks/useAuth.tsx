@@ -1,10 +1,7 @@
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { activarSincronizacionOutbox } from '@/lib/offline/outbox'
-import { esErrorConexion, guardarCacheUsuario, leerCacheUsuario } from '@/lib/offline/cache'
-import { limpiarDatosLocales } from '@/lib/offline/db'
 
 export type Perfil = {
   id: string
@@ -30,17 +27,11 @@ type ContextoAuth = {
 
 const Auth = createContext<ContextoAuth | null>(null)
 
-/** Elimina la cache REST creada por versiones anteriores de la PWA. */
-async function limpiarCacheDatos() {
-  if ('caches' in window) await window.caches.delete('datos-api')
-}
-
 export function ProveedorAuth({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
   const [sesion, setSesion] = useState<Session | null>(null)
   const [perfil, setPerfil] = useState<Perfil | null>(null)
   const [cargando, setCargando] = useState(true)
-  const ultimoUsuario = useRef<string | null>(null)
 
   async function cargarPerfil(userId: string) {
     const { data, error } = await supabase
@@ -54,10 +45,7 @@ export function ProveedorAuth({ children }: { children: ReactNode }) {
       .single()
 
     if (error || !data) {
-      const local = error && esErrorConexion(error)
-        ? await leerCacheUsuario<Perfil>(userId, 'perfil')
-        : undefined
-      setPerfil(local ?? null)
+      setPerfil(null)
       return
     }
 
@@ -90,50 +78,32 @@ export function ProveedorAuth({ children }: { children: ReactNode }) {
       ubicacion_id: ubicacion?.id ?? null,
     }
     setPerfil(perfilCargado)
-    await guardarCacheUsuario(userId, 'perfil', perfilCargado)
   }
 
   useEffect(() => {
-    // Las respuestas REST autenticadas no deben sobrevivir a un cambio de
-    // usuario. La version actual ya no las guarda, pero limpiamos la cache
-    // que pudo dejar instalada una version anterior del service worker.
-    void limpiarCacheDatos()
-
     supabase.auth.getSession().then(async ({ data }) => {
       setSesion(data.session)
       if (data.session) {
-        ultimoUsuario.current = data.session.user.id
         await cargarPerfil(data.session.user.id)
       }
       setCargando(false)
     })
 
     const { data: sub } = supabase.auth.onAuthStateChange(async (evento, nuevaSesion) => {
-      const anterior = ultimoUsuario.current
       setSesion(nuevaSesion)
       if (nuevaSesion) {
-        if (anterior && anterior !== nuevaSesion.user.id) await limpiarDatosLocales(anterior)
-        ultimoUsuario.current = nuevaSesion.user.id
         await cargarPerfil(nuevaSesion.user.id)
       }
       else {
         setPerfil(null)
         if (evento === 'SIGNED_OUT') {
           queryClient.clear()
-          if (anterior) await limpiarDatosLocales(anterior)
-          ultimoUsuario.current = null
-          void limpiarCacheDatos()
         }
       }
     })
 
     return () => sub.subscription.unsubscribe()
   }, [queryClient])
-
-  useEffect(() => {
-    if (!sesion?.user.id) return
-    return activarSincronizacionOutbox(sesion.user.id)
-  }, [sesion?.user.id])
 
   const valor: ContextoAuth = {
     sesion,
@@ -183,12 +153,9 @@ export function ProveedorAuth({ children }: { children: ReactNode }) {
     },
 
     async salir() {
-      const usuarioId = sesion?.user.id
       await supabase.auth.signOut()
       setPerfil(null)
       queryClient.clear()
-      if (usuarioId) await limpiarDatosLocales(usuarioId)
-      await limpiarCacheDatos()
     },
     async recuperar(email) {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {

@@ -23,7 +23,6 @@ import Reportes from '@/features/reportes/Reportes'
 import Auditoria from '@/features/auditoria/Auditoria'
 
 const Encomiendas = lazy(() => import('@/features/encomiendas/Encomiendas'))
-const Sincronizacion = lazy(() => import('@/features/offline/Sincronizacion'))
 
 const cliente = new QueryClient({
   defaultOptions: {
@@ -117,10 +116,6 @@ export default function App() {
               <Route path="productos" element={<ListaProductos />} />
               <Route path="inventario" element={<Inventario />} />
               <Route path="ventas" element={<Ventas />} />
-              <Route
-                path="sincronizacion"
-                element={<Suspense fallback={<Loader2 className="m-auto h-6 w-6 animate-spin" />}><Sincronizacion /></Suspense>}
-              />
               <Route
                 path="encomiendas"
                 element={
